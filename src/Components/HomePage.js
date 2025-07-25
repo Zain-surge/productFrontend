@@ -6,6 +6,7 @@ import locIcon from "../images/locIcon.png";
 import dropDown from "../images/dropdown.png";
 import AuthModal from "./AuthModal";
 import { addToCart } from "../store/cartSlice";
+import { colors } from "../colors";
 import {
   getCart,
   loginUser,
@@ -87,13 +88,13 @@ function HomePage() {
   const SelectTextStyle = {
     fontFamily: "Bambino",
     fontWeight: 450,
-    backgroundColor: "#074711",
+    backgroundColor: colors.primaryGreen,
   };
 
   const MenuTextStyle = {
     fontFamily: "Bambino",
     fontWeight: 450,
-    backgroundColor: "#AA1B17",
+    backgroundColor: colors.primaryRed,
   };
 
   const OptionTextStyle = {

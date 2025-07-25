@@ -5,16 +5,17 @@ import logo from "../images/tvpLogo.png";
 import cartIcon from "../images/cart.png";
 import CartWrapper from "./CartWrapper";
 import personIcon from "../images/person.png";
-import axios from "axios";
+import axiosInstance from "../axiosInstance";
 import { clearUser, setUser } from "../store/userSlice";
 import { clearCart } from "../store/cartSlice";
-import { openAuthModal } from "../store/modalSlice"; // Import the action
+import { openAuthModal } from "../store/modalSlice";
+import { colors } from "../colors";
 
 function NavBar() {
   const totalItems = useSelector((state) => state.cart.items.length);
   const user = useSelector((state) => state.user.user);
-  const cartItems = useSelector((state) => state.cart.items); // Get cart items
-  const showAuthModal = useSelector((state) => state.modal.showAuthModal); // Get the modal state
+  const cartItems = useSelector((state) => state.cart.items);
+  const showAuthModal = useSelector((state) => state.modal.showAuthModal);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
@@ -23,8 +24,8 @@ function NavBar() {
   const location = useLocation();
 
   useEffect(() => {
-    axios
-      .get("https://thevillage-backend.onrender.com/auth/check-session", {
+    axiosInstance
+      .get("/auth/check-session", {
         withCredentials: true,
       })
       .then((res) => dispatch(setUser(res.data.user)))
@@ -35,11 +36,7 @@ function NavBar() {
     try {
       console.log("LOGGING OUT");
       await saveCartItems();
-      await axios.post(
-        "https://thevillage-backend.onrender.com/auth/logout",
-        {},
-        { withCredentials: true }
-      );
+      await axiosInstance.post("/auth/logout", {}, { withCredentials: true });
       dispatch(clearUser());
       dispatch(clearCart());
       setIsUserDropdownOpen(false);
@@ -47,14 +44,15 @@ function NavBar() {
       console.error("Logout Error:", error);
     }
   };
+
   const saveCartItems = async () => {
     if (cartItems.length > 0 && user) {
       try {
         console.log(cartItems);
-        await axios.post(
-          "https://thevillage-backend.onrender.com/cart/saveCart",
+        await axiosInstance.post(
+          "/cart/saveCart",
           {
-            userId: user.id, // Assuming user.id is available
+            userId: user.id,
             cartItems: cartItems,
           },
           { withCredentials: true }
@@ -65,11 +63,12 @@ function NavBar() {
       }
     }
   };
+
   useEffect(() => {
     const handleBeforeUnload = async (event) => {
       if (cartItems.length > 0 && user) {
         event.preventDefault();
-        await saveCartItems(); // Save cart items before leaving the page
+        await saveCartItems();
       }
     };
 
@@ -89,193 +88,74 @@ function NavBar() {
     fontWeight: 750,
   };
 
-  const NavBarTextStyleHover = {
+  const NavBarTextStyleDesktop = {
+    fontFamily: "Bambino",
+    fontWeight: 750,
+    textDecoration: "none",
+  };
+
+  const NavBarTextStyleHoverDesktop = {
     fontFamily: "Bambino",
     fontWeight: 750,
     textDecoration: "underline",
-    textDecorationColor: "#AA1B17",
-    textDecorationThickness: "3px",
-    textUnderlineOffset: "5px",
-  };
-
-  const NavBarTextStyleMobile = {
-    fontFamily: "Bambino",
-    fontWeight: 750,
-    color: "#FFFFFF",
-  };
-
-  const NavBarTextStyleHoverMobile = {
-    fontFamily: "Bambino",
-    fontWeight: 750,
-    color: "#FFFFFF",
-    textDecoration: "underline",
-    textDecorationColor: "#000000",
+    textDecorationColor: colors.primaryRed,
     textDecorationThickness: "3px",
     textUnderlineOffset: "5px",
   };
 
   return (
     <div>
+      {/* Desktop Navigation - Top */}
       <nav
-        className="fixed top-0 z-50 w-full"
-        style={
-          isActive("/") || isActive("/contact")
-            ? { backgroundColor: "#FFFFFF" }
-            : { backgroundColor: "transparent" }
-        }
+        className="hidden lg:block fixed top-0 w-full bg-white"
+        style={{ zIndex: 45 }}
       >
-        <div>
-          <div className="lg:relative grid h-20 grid-cols-3 lg:grid-cols-1">
-            <div className="lg:absolute inset-y-0 left-0 flex items-center lg:hidden col-span-1">
-              <button
-                type="button"
-                className={`relative inline-flex items-center justify-center rounded-md p-2 text-[#000000] hover:bg-[#AA1B17] hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white`}
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              >
-                <span className="absolute -inset-0.5"></span>
-                <span className="sr-only">Open main menu</span>
-                <svg
-                  className={`${isMobileMenuOpen ? "hidden" : "block"} h-6 w-6`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth="1.5"
-                  stroke="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-                  />
-                </svg>
-                <svg
-                  className={`${isMobileMenuOpen ? "block" : "hidden"} h-6 w-6`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth="1.5"
-                  stroke="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18 18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
+        <div className="flex items-center justify-between h-20 px-8">
+          <div className="flex items-center">
+            <Link to="/">
+              <img className="h-12 w-auto" src={logo} alt="Logo" />
+            </Link>
+          </div>
 
-            <div className="flex flex-auto items-center justify-center lg:justify-between col-span-1">
-              <div className="flex justify-center lg:justify-start items-center mx-10">
-                <img className="h-12 w-auto" src={logo} alt="Logo" />
-              </div>
-              <div className="hidden lg:block h-20 w-2/3 mx-4">
-                <div className="flex justify-end items-center">
-                  {/* <Link
-                    to="/"
-                    className="nav-link my-3 py-1 px-3 lg:px-6 lg:px-8 text-xs lg:text-sm lg:text-md"
-                    style={
-                      isActive("/") ? NavBarTextStyleHover : NavBarTextStyle
-                    }
-                  >
-                    HOME
-                  </Link> */}
-                  <Link
-                    to="/"
-                    className="nav-link my-3 py-1 px-3 lg:px-6 lg:px-8 text-xs lg:text-sm lg:text-md"
-                    style={
-                      isActive("/") ? NavBarTextStyleHover : NavBarTextStyle
-                    }
-                  >
-                    MENU
-                  </Link>
+          <div className="flex items-center space-x-8">
+            <Link
+              to="/"
+              className="nav-link py-1 px-4 text-sm"
+              style={
+                isActive("/")
+                  ? NavBarTextStyleHoverDesktop
+                  : NavBarTextStyleDesktop
+              }
+            >
+              MENU
+            </Link>
+            <Link
+              to="/contact"
+              className="nav-link py-1 px-4 text-sm"
+              style={
+                isActive("/contact")
+                  ? NavBarTextStyleHoverDesktop
+                  : NavBarTextStyleDesktop
+              }
+            >
+              CONTACT US
+            </Link>
 
-                  <Link
-                    to="/contact"
-                    className="nav-link my-3 py-1 px-3 lg:px-6 lg:px-8 text-xs lg:text-sm lg:text-md"
-                    style={
-                      isActive("/contact")
-                        ? NavBarTextStyleHover
-                        : NavBarTextStyle
-                    }
-                  >
-                    CONTACT US
-                  </Link>
-                  {/* <div className="relative">
-                    <button onClick={() => setIsCartOpen(true)}>
-                      <img
-                        className="h-10 w-auto my-3 px-3"
-                        src={cartIcon}
-                        alt="Cart Icon"
-                      />
-                      {totalItems > 0 && (
-                        <span className="absolute top-2 right-1 bg-red-700 text-white text-xs rounded-full px-2">
-                          {totalItems}
-                        </span>
-                      )}
-                    </button>
-                  </div> */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
-                    >
-                      <img
-                        className="h-10 w-auto my-3 px-3"
-                        src={personIcon}
-                        alt="Person Icon"
-                      />
-                    </button>
-                    {isUserDropdownOpen && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 shadow-lg z-50">
-                        {user ? (
-                          <>
-                            <div className="px-4 py-2 text-sm text-gray-700">
-                              {user.email}
-                            </div>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                              onClick={() => dispatch(openAuthModal())}
-                            >
-                              Edit Profile
-                            </Link>
-                            <button
-                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                              onClick={handleLogout}
-                            >
-                              Logout
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                              onClick={() => dispatch(openAuthModal())} // Dispatch the action to open the modal
-                            >
-                              Login
-                            </Link>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end lg:relative lg:hidden top-4 col-span-1">
+            <div className="relative">
               <button
                 onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
               >
                 <img
-                  className="h-6 w-auto my-3 px-3"
+                  className="h-8 w-auto"
                   src={personIcon}
                   alt="Person Icon"
                 />
               </button>
               {isUserDropdownOpen && (
-                <div className="absolute right-0 mt-14 w-20 mr-12 bg-white border border-gray-200 shadow-lg z-50">
+                <div
+                  className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 shadow-lg "
+                  style={{ zIndex: 100 }}
+                >
                   {user ? (
                     <>
                       <div className="px-4 py-2 text-sm text-gray-700">
@@ -283,13 +163,13 @@ function NavBar() {
                       </div>
                       <Link
                         to="/"
-                        className="block px-4 py-2 text-xxs text-gray-700 hover:bg-gray-100"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => dispatch(openAuthModal())}
                       >
                         Edit Profile
                       </Link>
                       <button
-                        className="block w-full text-left px-4 py-2 text-xxs text-gray-700 hover:bg-gray-100"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={handleLogout}
                       >
                         Logout
@@ -299,8 +179,8 @@ function NavBar() {
                     <>
                       <Link
                         to="/"
-                        className="block px-4 py-2 text-xxs text-gray-700 hover:bg-gray-100"
-                        onClick={() => dispatch(openAuthModal())} // Dispatch the action to open the modal
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => dispatch(openAuthModal())}
                       >
                         Login
                       </Link>
@@ -308,71 +188,188 @@ function NavBar() {
                   )}
                 </div>
               )}
-
-              <button onClick={() => setIsCartOpen(true)}>
-                <img
-                  className="h-6 w-auto my-3 px-3"
-                  src={cartIcon}
-                  alt="Cart Icon"
-                />
-                {totalItems > 0 && (
-                  <span className="absolute top-2 right-1 bg-red-700 text-white text-xs rounded-full px-2">
-                    {totalItems}
-                  </span>
-                )}
-              </button>
             </div>
           </div>
         </div>
+      </nav>
 
-        <div
-          className={`${isMobileMenuOpen ? "block" : "hidden"} lg:hidden w-1/2`}
-          id="mobile-menu"
-          style={{ backgroundColor: "#AA1B17" }}
-        >
-          <div className="grid justify-start px-2 pb-3 pt-2">
-            {/* <Link
-              to="/"
-              className="nav-link block px-5 py-2 text-left"
-              onClick={() => setIsMobileMenuOpen(false)}
-              style={
-                isActive("/")
-                  ? NavBarTextStyleHoverMobile
-                  : NavBarTextStyleMobile
-              }
-            >
-              HOME
-            </Link> */}
-            <Link
-              to="/"
-              className="nav-link block px-5 py-2 text-left"
-              style={
-                isActive("/")
-                  ? NavBarTextStyleHoverMobile
-                  : NavBarTextStyleMobile
-              }
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              MENU
+      {/* Mobile Navigation - Bottom */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg">
+        <div className="flex items-center justify-between h-16 px-4">
+          {/* Left Section - Menu and Contact */}
+          <div className="flex items-center space-x-6">
+            <Link to="/" className="flex flex-col items-center justify-center">
+              <div
+                className={`w-6 h-6 flex items-center justify-center mb-1`}
+                style={{ color: isActive("/") ? colors.primary : "#4B5563" }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                </svg>
+              </div>
+              <span
+                className={`text-xs `}
+                style={{
+                  ...NavBarTextStyle,
+                  color: isActive("/") ? colors.primary : "#4B5563", // gray-600 fallback
+                }}
+              >
+                MENU
+              </span>
             </Link>
 
             <Link
               to="/contact"
-              className="nav-link block px-5 py-2 text-left"
-              onClick={() => setIsMobileMenuOpen(false)}
-              style={
-                isActive("/contact")
-                  ? NavBarTextStyleHoverMobile
-                  : NavBarTextStyleMobile
-              }
+              className="flex flex-col items-center justify-center"
             >
-              CONTACT US
+              <div
+                className={`w-6 h-6 flex items-center justify-center mb-1 `}
+                style={{
+                  color: isActive("/contact") ? colors.primary : "#4B5563", // gray-600 fallback
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+                </svg>
+              </div>
+              <span
+                className={`text-xs `}
+                style={{
+                  ...NavBarTextStyle,
+                  color: isActive("/contact") ? colors.primary : "#4B5563", // gray-600 fallback
+                }}
+              >
+                CONTACT
+              </span>
             </Link>
           </div>
-        </div>
 
-        <CartWrapper isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+          {/* Center Section - Logo */}
+          <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-6">
+            <Link to="/" className="flex items-center justify-center">
+              <div className="relative">
+                {/* Green Circle Background */}
+                <div
+                  className="absolute inset-0 w-16 h-16  rounded-full flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2 shadow-lg"
+                  style={{ backgroundColor: colors.primaryGreen }}
+                ></div>
+                {/* Logo */}
+                <img
+                  className="relative h-10 w-auto z-10"
+                  src={logo}
+                  alt="Logo"
+                />
+              </div>
+            </Link>
+          </div>
+
+          {/* Right Section - Cart and Login */}
+          <div className="flex items-center space-x-6">
+            <div className="relative">
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="flex flex-col items-center justify-center"
+              >
+                <div className="relative w-6 h-6 flex items-center justify-center mb-1 text-gray-600">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                  </svg>
+                  {totalItems > 0 && (
+                    <span
+                      className="absolute -top-2 -right-2  text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                      style={{ backgroundColor: colors.primaryRed }}
+                    >
+                      {totalItems}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-gray-600" style={NavBarTextStyle}>
+                  CART
+                </span>
+              </button>
+            </div>
+
+            <div className="relative">
+              <button
+                onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                className="flex flex-col items-center justify-center"
+              >
+                <div className="w-6 h-6 flex items-center justify-center mb-1 text-gray-600">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                  </svg>
+                </div>
+                <span className="text-xs text-gray-600" style={NavBarTextStyle}>
+                  {user ? "PROFILE" : "LOGIN"}
+                </span>
+              </button>
+
+              {isUserDropdownOpen && (
+                <div className="absolute right-0 bottom-full mb-2 w-48 bg-white border border-gray-200 shadow-lg rounded-lg ">
+                  {user ? (
+                    <>
+                      <div className="px-4 py-2 text-sm text-gray-700 border-b">
+                        {user.email}
+                      </div>
+                      <Link
+                        to="/"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => {
+                          dispatch(openAuthModal());
+                          setIsUserDropdownOpen(false);
+                        }}
+                      >
+                        Edit Profile
+                      </Link>
+                      <button
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={handleLogout}
+                      >
+                        Logout
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to="/"
+                        className="block px-4 py-2 text-sm text-black hover:bg-gray-100"
+                        onClick={() => {
+                          dispatch(openAuthModal());
+                          setIsUserDropdownOpen(false);
+                        }}
+                      >
+                        Login
+                      </Link>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </nav>
+
+      <CartWrapper isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>
   );
 }

@@ -13,6 +13,7 @@ const ordersSlice = createSlice({
     },
     addOrder(state, action) {
       debugger;
+      console.log("ORDER NEW:", action.payload);
       state.todayOrders.unshift(action.payload); // Add new order to the top
     },
     updateOrderStatus(state, action) {

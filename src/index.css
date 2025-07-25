@@ -125,3 +125,70 @@ code {
   width: 0;
 }
 
+
+.custom-scrollbar2::-webkit-scrollbar {
+  height: 7px;
+}
+
+.custom-scrollbar2::-webkit-scrollbar-track {
+  background: white; /* light red (like red-100) */
+  border-radius: 10px;
+
+}
+
+.custom-scrollbar2::-webkit-scrollbar-thumb {
+  background-color: #074711; /* red-400 */
+  border-radius: 10px;
+}
+
+.custom-scrollbar2::-webkit-scrollbar-button {
+   /* Remove up/down arrows (carets) */
+  background-color: white;
+  height: 0;
+  width: 0;
+}
+
+.custom-scrollbar3::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar3::-webkit-scrollbar-track {
+  background: white; /* light red (like red-100) */
+  border-radius: 10px;
+}
+
+.custom-scrollbar3::-webkit-scrollbar-thumb {
+  background-color: black; /* red-400 */
+  border-radius: 10px;
+}
+
+.custom-scrollbar3::-webkit-scrollbar-button {
+   /* Remove up/down arrows (carets) */
+  background-color: white;
+  height: 0;
+  width: 0;
+}
+
+
+
+.custom-scrollbar3::-webkit-scrollbar {
+  height: 7px;
+}
+
+.custom-scrollbar3::-webkit-scrollbar-track {
+  background: white; /* light red (like red-100) */
+  border-radius: 10px;
+
+}
+
+.custom-scrollbar3::-webkit-scrollbar-thumb {
+  background-color: #AA1B17; /* red-400 */
+  border-radius: 10px;
+}
+
+.custom-scrollbar3::-webkit-scrollbar-button {
+   /* Remove up/down arrows (carets) */
+  background-color: white;
+  height: 0;
+  width: 0;
+}

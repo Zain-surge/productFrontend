@@ -9,7 +9,7 @@ import {
 } from "../store/cartSlice";
 import { addOrder, setTodayOrders } from "../store/ordersSlice";
 import { useSelector, useDispatch } from "react-redux";
-import axios from "axios";
+import axiosInstance from "../axiosInstance"; // Adjust path based on file location
 
 import Pizza from "../images/CLIPARTS/PizzasS.png";
 import Shawarma from "../images/CLIPARTS/ShawarmaS.png";
@@ -129,18 +129,15 @@ const AdminCart = ({ isOpen, onClose, menuItems }) => {
     setProcessing(true);
 
     try {
-      // Step 3: Check if User Exists in Database
-      let userId = null;
-      let guestId = null;
+      const transactionId = Math.floor(
+        100000000000 + Math.random() * 900000000000
+      ).toString();
 
-      try {
-        if (user) {
-          userId = user.user_id;
-        } else {
-          // Create a guest entry if the user doesn't exist
-          const guestResponse = await axios.post(
-            "https://thevillage-backend.onrender.com/users/create-guest",
-            {
+      const orderPayload = {
+        user_id: user ? user.user_id : null,
+        guest: user
+          ? null
+          : {
               name: formData.name,
               email: formData.email,
               phone_number: formData.phone,
@@ -148,69 +145,32 @@ const AdminCart = ({ isOpen, onClose, menuItems }) => {
               city: formData.address.city,
               county: formData.address.state,
               postal_code: formData.address.zipCode,
-            }
-          );
+            },
+        transaction_id: transactionId,
+        payment_type: formData.paymentOption,
+        order_type: selectedType,
+        total_price: totalPrice,
+        extra_notes: formData.reviewNotes || "",
+        status: "yellow",
+        order_source: "EPOS",
+        items: cart.map((item) => ({
+          item_id: item.id,
+          quantity: item.itemQuantity,
+          description: item.description,
+          total_price: item.totalPrice,
+        })),
+      };
+      debugger;
 
-          if (guestResponse.data && guestResponse.data.guest_id) {
-            guestId = guestResponse.data.guest_id;
-          }
-        }
-      } catch (userError) {
-        console.error("Error checking user existence:", userError);
-        setError("User verification failed. Please try again.");
-        return;
-      }
+      const fullOrderResponse = await axiosInstance.post(
+        "/orders/full-create",
+        orderPayload
+      );
 
-      // Step 4: Insert Order into Database
-      let orderId;
-      let transactionId;
-      try {
-        transactionId = Math.floor(
-          100000000000 + Math.random() * 900000000000
-        ).toString();
-
-        const orderResponse = await axios.post(
-          "https://thevillage-backend.onrender.com/orders/create",
-          {
-            user_id: userId,
-            guest_id: guestId,
-            transaction_id: transactionId,
-            payment_type: formData.paymentOption,
-            order_type: selectedType,
-            total_price: totalPrice,
-            extra_notes: formData.reviewNotes || "",
-            status: "yellow",
-            order_source: "EPOS",
-          }
-        );
-
-        if (orderResponse.data && orderResponse.data.order_id) {
-          orderId = orderResponse.data.order_id;
-        } else {
-          throw new Error("Failed to create order.");
-        }
-      } catch (orderError) {
-        console.error("Order creation error:", orderError);
-        setError("Order creation failed. Please try again.");
-        return;
-      }
+      const orderId = fullOrderResponse.data.order_id;
 
       // Step 5: Insert Order Items into Database
       try {
-        await Promise.all(
-          cart.map(async (item) => {
-            await axios.post(
-              "https://thevillage-backend.onrender.com/orders/add-item",
-              {
-                order_id: orderId,
-                item_id: item.id,
-                quantity: item.itemQuantity,
-                description: item.description,
-                total_price: item.totalPrice,
-              }
-            );
-          })
-        );
         debugger;
         const formattedCart = cart.map((item) => ({
           item_name: item.title,
@@ -238,7 +198,6 @@ const AdminCart = ({ isOpen, onClose, menuItems }) => {
             postal_code: "44000",
             order_total_price: totalPrice,
             created_at: new Date().toISOString(),
-
             items: formattedCart,
           })
         );

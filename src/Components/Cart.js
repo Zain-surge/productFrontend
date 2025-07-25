@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowLeft, Plus, Minus, Trash2 } from "lucide-react";
-import { loadStripe } from "@stripe/stripe-js";
 import { Link, useLocation } from "react-router-dom";
 import { addToCart } from "../store/cartSlice";
 import {
@@ -16,12 +15,11 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import axios from "axios";
-import { clearUser, setUser } from "../store/userSlice";
-
+import axiosInstance from "../axiosInstance";
+import { colors } from "../colors";
 import { useSelector, useDispatch } from "react-redux";
-import qz from "qz-tray";
-
-// Animation Variants
+import logo from "../images/tvpLogo.png";
+import basket from "../images/basket.png";
 const pageVariants = {
   initial: { opacity: 0, x: "100%" },
   in: { opacity: 1, x: 0 },
@@ -39,20 +37,6 @@ const itemVariants = {
   visible: (custom) => ({
     opacity: 1,
     x: 0,
-    transition: {
-      delay: custom * 0.1,
-      type: "spring",
-      stiffness: 100,
-    },
-  }),
-};
-
-// Add this new animation variant for side orders
-const sideOrderVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (custom) => ({
-    opacity: 1,
-    y: 0,
     transition: {
       delay: custom * 0.1,
       type: "spring",
@@ -84,12 +68,13 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
   const [error, setError] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
+  const [isHovered, setIsHovered] = useState(false);
   const [places, setPlaces] = useState({});
+
   const [postalCodes, setPostalCodes] = useState([]);
   const [filteredPostalCodes, setFilteredPostalCodes] = useState([]);
-  const [selectedPostalCode, setSelectedPostalCode] = useState("");
   const [search, setSearch] = useState("");
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
     const fetchNearbyPlaces = async (lat, lon, radius = 5000) => {
@@ -109,7 +94,7 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
           url,
           `data=${encodeURIComponent(overpassQuery)}`
         );
-
+        console.log("PLACES DATS: ", response.data);
         // Group results by postal code
         const groupedPlaces = response.data.elements.reduce((acc, place) => {
           const postalCode = place.tags?.["addr:postcode"] || "Unknown";
@@ -144,9 +129,9 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
   }, []);
 
   useEffect(() => {
-    // Filter postal codes based on search input (case-insensitive)
+    const normalizedSearch = search.replace(/\s/g, "").toLowerCase();
     const filtered = postalCodes.filter((code) =>
-      code.toLowerCase().includes(search.toLowerCase())
+      code.replace(/\s/g, "").toLowerCase().includes(normalizedSearch)
     );
     setFilteredPostalCodes(filtered);
   }, [search, postalCodes]);
@@ -161,6 +146,8 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
     (total, item) => total + parseFloat(item.totalPrice * item.itemQuantity),
     0
   );
+  const deliveryFee = formData.deliveryOption === "delivery" ? 1.5 : 0;
+  const finalTotal = totalPrice + deliveryFee;
   const handleIncreaseQuantity = (title) => {
     dispatch(updateItemQuantity({ title: title, change: 1 }));
   };
@@ -189,6 +176,20 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === "deliveryOption" && value === "pickup") {
+      setFormData((prev) => ({
+        ...prev,
+        deliveryOption: "pickup",
+        paymentOption: "cod", // Force to COD when pickup
+        address: {
+          street: "",
+          city: "",
+          state: "",
+          zipCode: "",
+        },
+      }));
+      return;
+    }
     if (name.includes("address.")) {
       const addressField = name.split(".")[1];
       setFormData((prev) => ({
@@ -206,6 +207,31 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError(null);
+    if (
+      checkoutStage === "customer-info" &&
+      formData.deliveryOption === "delivery" &&
+      totalPrice < 8.5
+    ) {
+      setFormError("Cannot place a delivery order less than £8.50.");
+      return;
+    }
+    const normalizedInput = formData.address.zipCode
+      .replace(/\s/g, "")
+      .toLowerCase();
+    const normalizedPostalCodes = postalCodes.map((code) =>
+      code.replace(/\s/g, "").toLowerCase()
+    );
+
+    if (
+      checkoutStage === "customer-info" &&
+      formData.deliveryOption === "delivery" &&
+      !normalizedPostalCodes.includes(normalizedInput)
+    ) {
+      setFormError("Invalid postal code. Please select from the dropdown.");
+      return;
+    }
+
+    setFormError("");
 
     if (
       checkoutStage === "customer-info" &&
@@ -226,15 +252,15 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
           userId = user.user_id;
         } else {
           // Create a guest entry if the user doesn't exist
-          const guestResponse = await axios.post(
-            "https://thevillage-backend.onrender.com/users/create-guest",
+          const guestResponse = await axiosInstance.post(
+            "/users/create-guest",
             {
               name: formData.name,
               email: formData.email,
               phone_number: formData.phone,
               street_address: formData.address.street,
               city: formData.address.city,
-              county: formData.address.state,
+              county: "",
               postal_code: formData.address.zipCode,
             }
           );
@@ -256,20 +282,18 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
           100000000000 + Math.random() * 900000000000
         ).toString();
 
-        const orderResponse = await axios.post(
-          "https://thevillage-backend.onrender.com/orders/create",
-          {
-            user_id: userId,
-            guest_id: guestId,
-            transaction_id: transactionId,
-            payment_type: formData.paymentOption,
-            order_type: formData.deliveryOption,
-            total_price: totalPrice,
-            extra_notes: formData.extraNotes || "",
-            status: "yellow",
-            order_source: "Website",
-          }
-        );
+        const orderResponse = await axiosInstance.post("/orders/create", {
+          user_id: userId,
+          guest_id: guestId,
+          transaction_id: transactionId,
+          payment_type: formData.paymentOption,
+          order_type: formData.deliveryOption,
+          total_price: totalPrice,
+          extra_notes: formData.extraNotes || "",
+          status: "yellow",
+          order_source: "Website",
+          driver_id: null,
+        });
 
         if (orderResponse.data && orderResponse.data.order_id) {
           orderId = orderResponse.data.order_id;
@@ -286,16 +310,13 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
       try {
         await Promise.all(
           cart.map(async (item) => {
-            await axios.post(
-              "https://thevillage-backend.onrender.com/orders/add-item",
-              {
-                order_id: orderId,
-                item_id: item.id,
-                quantity: item.itemQuantity,
-                description: item.description,
-                total_price: item.totalPrice,
-              }
-            );
+            await axiosInstance.post("/orders/add-item", {
+              order_id: orderId,
+              item_id: item.id,
+              quantity: item.itemQuantity,
+              description: item.description,
+              total_price: item.totalPrice,
+            });
           })
         );
       } catch (orderItemError) {
@@ -322,10 +343,10 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
 
     try {
       // Step 1: Create Payment Intent
-      const { data } = await axios.post(
-        "https://thevillage-backend.onrender.com/payment/create-payment-intent",
+      const { data } = await axiosInstance.post(
+        "/payment/create-payment-intent",
         {
-          amount: totalPrice,
+          amount: finalTotal,
           customerInfo: formData,
           cartItems: cart,
         }
@@ -366,15 +387,15 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
           userId = user.user_id;
         } else {
           // Create a guest entry if the user doesn't exist
-          const guestResponse = await axios.post(
-            "https://thevillage-backend.onrender.com/users/create-guest",
+          const guestResponse = await axiosInstance.post(
+            "/users/create-guest",
             {
               name: formData.name,
               email: formData.email,
               phone_number: formData.phone,
               street_address: formData.address.street,
               city: formData.address.city,
-              county: formData.address.state,
+              county: "",
               postal_code: formData.address.zipCode,
             }
           );
@@ -392,18 +413,15 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
       // Step 4: Insert Order into Database
       let orderId;
       try {
-        const orderResponse = await axios.post(
-          "https://thevillage-backend.onrender.com/orders/create",
-          {
-            user_id: userId,
-            guest_id: guestId,
-            transaction_id: result.paymentIntent.id,
-            payment_type: formData.paymentOption,
-            order_type: formData.deliveryOption,
-            total_price: totalPrice,
-            extra_notes: formData.extraNotes || "",
-          }
-        );
+        const orderResponse = await axiosInstance.post("/orders/create", {
+          user_id: userId,
+          guest_id: guestId,
+          transaction_id: result.paymentIntent.id,
+          payment_type: formData.paymentOption,
+          order_type: formData.deliveryOption,
+          total_price: totalPrice,
+          extra_notes: formData.extraNotes || "",
+        });
 
         if (orderResponse.data && orderResponse.data.order_id) {
           orderId = orderResponse.data.order_id;
@@ -420,16 +438,13 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
       try {
         await Promise.all(
           cart.map(async (item) => {
-            await axios.post(
-              "https://thevillage-backend.onrender.com/orders/add-item",
-              {
-                order_id: orderId,
-                item_id: item.id,
-                quantity: item.itemQuantity,
-                description: item.description,
-                total_price: item.totalPrice,
-              }
-            );
+            await axiosInstance.post("/orders/add-item", {
+              order_id: orderId,
+              item_id: item.id,
+              quantity: item.itemQuantity,
+              description: item.description,
+              total_price: item.totalPrice,
+            });
           })
         );
       } catch (orderItemError) {
@@ -438,32 +453,6 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
           "Payment was successful, but some items could not be recorded."
         );
       }
-      // // Step 3: Send Order Details to Backend
-      // try {
-      //   const receiptResponse = await axios.post(
-      //     "https://thevillage-backend.onrender.com/payment/send-receipt",
-      //     {
-      //       customerInfo: formData,
-      //       cartItems: cart,
-      //       totalPrice,
-      //     }
-      //   );
-
-      //   if (receiptResponse.status !== 200 || !receiptResponse.data.success) {
-      //     throw new Error(
-      //       receiptResponse.data.error || "Failed to send receipt."
-      //     );
-      //   }
-
-      //   console.log("Receipt sent successfully.");
-
-      //   // Step 4: Print the Receipt using QZ Tray
-      //   await printReceipt(formData, cart, totalPrice);
-      // } catch (receiptError) {
-      //   console.error("Receipt error:", receiptError);
-      //   setError("Payment was successful, but receipt could not be sent.");
-      // }
-
       // Step 5: Payment Success, Proceed to Confirmation
       setCheckoutStage("confirmation");
     } catch (err) {
@@ -486,17 +475,97 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
   }, [itemRef.current]);
 
   useEffect(() => {
+    if (isHovered) return; // Pause if hovering
+
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % sides.length);
     }, INTERVAL);
 
     return () => clearInterval(interval);
-  }, [sides.length, itemWidth]);
+  }, [sides.length, itemWidth, isHovered]);
 
   const loopingSides = [...sides, ...sides]; // duplicate for looping
 
   const renderCartItems = () => (
     <>
+      {cart.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6 mb-4"
+        >
+          <h3 className="text-sm lg:text-lg font-semibold mb-3">
+            Add Side Orders
+          </h3>
+          {/* Left Arrow */}
+          <div
+            className="relative overflow-hidden w-full"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <button
+              onClick={() =>
+                setIndex((prev) =>
+                  prev === 0 ? loopingSides.length - 1 : prev - 1
+                )
+              }
+              className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-70 hover:bg-opacity-100 p-1 rounded-full z-10 shadow"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="relative overflow-hidden w-full">
+              {/* Carousel */}
+              <motion.div
+                className="flex gap-4 px-8" // px-8 to avoid arrow overlap
+                animate={{ x: -index * itemWidth }}
+                transition={{ ease: "easeInOut", duration: 0.5 }}
+              >
+                {loopingSides.map((item, i) => (
+                  <div
+                    key={`side-${i}`}
+                    ref={i === 0 ? itemRef : null} // measure only first item
+                    className="relative flex-shrink-0"
+                  >
+                    <div className="flex flex-col items-center">
+                      <div className="relative w-16 h-16 lg:w-24 lg:h-24 rounded-full overflow-hidden group">
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          onClick={() => handleAddSideOrder(item)}
+                          className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
+                        >
+                          <Plus size={24} className="text-white" />
+                        </button>
+                      </div>
+                      <p
+                        className="text-xs lg:text-sm mt-1 text-center max-w-[80px]"
+                        title={item.title}
+                      >
+                        {item.title}
+                      </p>
+                      <p className="text-xs font-semibold">
+                        £{item.price.default}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </motion.div>
+            </div>
+            {/* Right Arrow */}
+            <button
+              onClick={() =>
+                setIndex((prev) => (prev + 1) % loopingSides.length)
+              }
+              className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-70 hover:bg-opacity-100 p-1 rounded-full z-10 shadow"
+            >
+              <ArrowLeft size={20} style={{ transform: "rotate(180deg)" }} />
+            </button>
+          </div>
+        </motion.div>
+      )}
       {cart.map((item, index) => (
         <motion.div
           key={index}
@@ -549,7 +618,14 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
                 </div>
                 <p className="text-gray-600 text-start text-xxxs lg:text-sm">
                   {item.description.split("\n").map((line, index) => (
-                    <span key={index}>
+                    <span
+                      key={index}
+                      className={
+                        line.startsWith("Review Note:")
+                          ? "bg-yellow-200 px-1 py-0.5 inline-block rounded"
+                          : ""
+                      }
+                    >
                       {line}
                       <br />
                     </span>
@@ -565,74 +641,14 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
           </div>
         </motion.div>
       ))}
-      {cart.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-6 mb-4"
-        >
-          <h3 className="text-sm lg:text-lg font-semibold mb-3">
-            Add Side Orders
-          </h3>
 
-          <div className="overflow-hidden w-full">
-            <motion.div
-              className="flex gap-4"
-              animate={{ x: -index * itemWidth }}
-              transition={{ ease: "easeInOut", duration: 0.5 }}
-            >
-              {loopingSides.map((item, i) => (
-                <div
-                  key={`side-${i}`}
-                  ref={i === 0 ? itemRef : null} // measure only first item
-                  className="relative flex-shrink-0"
-                >
-                  <div className="flex flex-col items-center">
-                    <div className="relative w-16 h-16 lg:w-24 lg:h-24 rounded-full overflow-hidden group">
-                      <img
-                        src={item.image}
-                        alt={item.title}
-                        className="w-full h-full object-cover"
-                      />
-                      <button
-                        onClick={() => handleAddSideOrder(item)}
-                        className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
-                      >
-                        <Plus size={24} className="text-white" />
-                      </button>
-                    </div>
-                    <p
-                      className="text-xs lg:text-sm mt-1 text-center max-w-[80px]"
-                      title={item.title}
-                    >
-                      {item.title}
-                    </p>
-                    <p className="text-xs font-semibold">
-                      £{item.price.default}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </motion.div>
-          </div>
-        </motion.div>
-      )}
-      {/* <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className="mt-6 flex justify-between items-center"
-      >
-        <h3 className="text-base font-bold">Delivery CHarges</h3>
-        <p className="text-base font-bold">£1.50</p>
-      </motion.div> */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
         className="mt-6 flex justify-between items-center"
       >
-        <h3 className="text-xl font-bold">Total</h3>
+        <h3 className="text-xl font-bold">Total order</h3>
         <p className="text-xl font-bold">£{totalPrice.toFixed(2)}</p>
       </motion.div>
     </>
@@ -644,6 +660,32 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
       animate={{ opacity: 1, x: 0 }}
       className="space-y-4"
     >
+      <div>
+        {/* <label className="block mb-1 text-xs lg:text-sm">Delivery Option</label> */}
+        <div className="flex space-x-4 text-xs lg:text-lg font-bold">
+          <label className="font-bold">
+            <input
+              type="radio"
+              name="deliveryOption"
+              value="delivery"
+              checked={formData.deliveryOption === "delivery"}
+              onChange={handleChange}
+            />{" "}
+            Delivery
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="deliveryOption"
+              value="pickup"
+              checked={formData.deliveryOption === "pickup"}
+              onChange={handleChange}
+            />{" "}
+            Pick Up
+          </label>
+        </div>
+      </div>
+
       <div>
         <label className="block mb-1 lg:mb-2 text-xs lg:text-sm text-start">
           Full Name
@@ -685,31 +727,7 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
       </div>
 
       {/* Delivery / Pick Up Radio Buttons */}
-      <div>
-        <label className="block mb-1 text-xs lg:text-sm">Delivery Option</label>
-        <div className="flex space-x-4 text-xs lg:text-sm">
-          <label>
-            <input
-              type="radio"
-              name="deliveryOption"
-              value="delivery"
-              checked={formData.deliveryOption === "delivery"}
-              onChange={handleChange}
-            />{" "}
-            Delivery
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="deliveryOption"
-              value="pickup"
-              checked={formData.deliveryOption === "pickup"}
-              onChange={handleChange}
-            />{" "}
-            Pick Up
-          </label>
-        </div>
-      </div>
+
       {formData.deliveryOption === "delivery" && (
         <div>
           <label className="block mb-1 lg:mb-2 text-xs lg:text-sm text-start">
@@ -724,7 +742,7 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
             className="w-full p-0 lg:p-2 border rounded text-sm lg:text-sm"
           />
 
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 lg:mb-2 text-xs lg:text-sm text-start">
                 City
@@ -738,19 +756,7 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
                 className="w-full p-0 lg:p-2 border rounded text-sm lg:text-sm"
               />
             </div>
-            <div>
-              <label className="block mb-1 lg:mb-2 text-xs lg:text-sm text-start">
-                County
-              </label>
-              <input
-                type="text"
-                name="address.state"
-                value={formData.address.state}
-                onChange={handleChange}
-                required
-                className="w-full p-0 lg:p-2 border rounded text-sm lg:text-sm"
-              />
-            </div>
+
             <div className="relative">
               <label className="block mb-1 lg:mb-2 text-xs lg:text-sm text-start">
                 Post Code
@@ -835,6 +841,33 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
           rows="3"
         />
       </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="mt-6 p-4 border-t"
+      >
+        <h3 className="text-sm lg:text-lg font-semibold mb-2">Order Summary</h3>
+        <div className="flex justify-between text-sm lg:text-base mb-1">
+          <span>Subtotal</span>
+          <span>£{totalPrice.toFixed(2)}</span>
+        </div>
+        {formData.deliveryOption === "delivery" && (
+          <div className="flex justify-between text-sm lg:text-base mb-1">
+            <span>Delivery Fee</span>
+            <span>£1.50</span>
+          </div>
+        )}
+        <div className="flex justify-between font-bold text-sm lg:text-base">
+          <span>Total</span>
+          <span>£{finalTotal.toFixed(2)}</span>
+        </div>
+        {formError && (
+          <div className="text-red-600 text-sm lg:text-base font-medium">
+            {formError}
+          </div>
+        )}
+      </motion.div>
     </motion.div>
   );
 
@@ -881,7 +914,10 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
             className="bg-white w-4/5 lg:w-[25%] h-full p-6 overflow-y-auto rounded-lg shadow-xl"
             style={{ pointerEvents: "auto", backgroundColor: "#F6F5F5" }}
           >
-            <div className="bg-[#AA1B17] -mx-6 -mt-6 mb-6 p-4 flex items-center block lg:hidden">
+            <div
+              className="-mx-6 -mt-6 mb-6 p-4 flex items-center block lg:hidden"
+              style={{ backgroundColor: colors.primaryRed }}
+            >
               {checkoutStage !== "cart" && (
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -920,6 +956,26 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
               </motion.button>
             </div>
 
+            {checkoutStage !== "cart" && (
+              <div className="hidden lg:flex justify-between items-center mb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (checkoutStage === "customer-info")
+                      setCheckoutStage("cart");
+                    if (checkoutStage === "payment")
+                      setCheckoutStage("customer-info");
+                    if (checkoutStage === "confirmation")
+                      setCheckoutStage("payment");
+                  }}
+                  className="flex items-center text-sm text-gray-700 hover:text-gray-900"
+                >
+                  <ArrowLeft className="mr-2" size={18} />
+                  Back
+                </button>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit}>
               {checkoutStage === "cart" && (
                 <>
@@ -929,7 +985,23 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
                       animate={{ opacity: 1 }}
                       className="text-center text-gray-500"
                     >
-                      Your cart is empty
+                      <div className=" flex justify-center items-center">
+                        <img
+                          className="h-8
+                         w-auto opacity-10 pr-3"
+                          src={basket}
+                          alt="Basket"
+                        />
+                        <span>Your cart is empty</span>
+                      </div>
+                      <div className="flex items-center justify-center mt-20 opacity-10">
+                        <img
+                          className="h-92
+                         w-auto"
+                          src={logo}
+                          alt="Logo"
+                        />
+                      </div>
                     </motion.p>
                   ) : (
                     <>
@@ -939,7 +1011,15 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
                         whileTap={{ scale: 0.95 }}
                         type="button"
                         onClick={() => setCheckoutStage("customer-info")}
-                        className="w-full bg-[#AA1B17] text-white text-sm lg:text-base py-1 lg:py-3 mt-6 rounded-lg hover:bg-red-700 transition"
+                        className="w-full  text-white text-sm lg:text-base py-1 lg:py-3 mt-6 rounded-lg transition"
+                        style={{ backgroundColor: colors.primaryRed }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.backgroundColor = "#8a1613")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.backgroundColor =
+                            colors.primaryRed)
+                        }
                       >
                         Proceed to Checkout
                       </motion.button>
@@ -958,13 +1038,20 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
                   whileTap={{ scale: 0.95 }}
                   type="submit"
                   disabled={processing && checkoutStage === "payment"}
-                  className="w-full bg-[#AA1B17] text-white text-sm lg:text-base py-1 lg:py-3 mt-6 rounded-lg hover:bg-red-700 transition"
+                  className="w-full  text-white text-sm lg:text-base py-1 lg:py-3 mt-6 rounded-lg  transition"
+                  style={{ backgroundColor: colors.primaryRed }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor = "#8a1613")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = colors.primaryRed)
+                  }
                 >
                   {checkoutStage === "customer-info" && "Continue to Payment"}
                   {checkoutStage === "payment" &&
                     (processing
                       ? "Processing..."
-                      : `Pay £${totalPrice.toFixed(2)}`)}
+                      : `Pay £${finalTotal.toFixed(2)}`)}
                 </motion.button>
               )}
 
@@ -974,7 +1061,14 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
                   whileTap={{ scale: 0.95 }}
                   type="button"
                   onClick={handleSubmit}
-                  className="w-full bg-[#AA1B17] text-white py-3 mt-6 rounded-lg hover:bg-red-700 transition"
+                  className="w-full  text-white py-3 mt-6 rounded-lg  transition"
+                  style={{ backgroundColor: colors.primaryRed }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor = "#8a1613")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = colors.primaryRed)
+                  }
                 >
                   Close
                 </motion.button>

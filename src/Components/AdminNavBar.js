@@ -1,5 +1,4 @@
-import React from "react";
-
+import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import TakeAway from "../images/TakeAway.png";
 import Delivery from "../images/Delivery.png";
@@ -11,12 +10,33 @@ import TakeAwayWhite from "../images/TakeAwaywhite.png";
 import DeliveryWhite from "../images/Deliverywhite.png";
 import DineInWhite from "../images/DineInwhite.png";
 import WebsiteWhite from "../images/webwhite.png";
+import SettingsModal from "./SettingsModal";
+// At the top of AdminNavBar.js
+import { useSelector } from "react-redux";
 
 function AdminNavBar() {
   const location = useLocation();
+  const offers = useSelector((state) => state.offers.list);
+
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  const moreRef = useRef();
+
   const isActive = (path) => {
     return location.pathname === path;
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (moreRef.current && !moreRef.current.contains(event.target)) {
+        setShowMoreOptions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const NavBarTextStyle = {
     fontFamily: "Poppins, sans-serif",
     fontWeight: 750,
@@ -113,7 +133,7 @@ function AdminNavBar() {
           <img className="h-10 w-auto my-2 px-3" src={home} alt="home" />
         </Link>
       </div>
-      <div className="col-span-1 flex justify-center items-center my-2">
+      {/* <div className="col-span-1 flex justify-center items-center my-2">
         <Link
           to="/admin/more"
           className="nav-link "
@@ -123,7 +143,43 @@ function AdminNavBar() {
         >
           <img className="h-10 w-auto my-2 px-3" src={More} alt="More" />
         </Link>
+      </div> */}
+      <div
+        ref={moreRef}
+        className="col-span-1 flex justify-center items-center my-2 relative"
+      >
+        <button
+          className="focus:outline-none"
+          onClick={() => setShowMoreOptions((prev) => !prev)}
+          style={NavBarTextStyle}
+        >
+          <img className="h-10 w-auto my-2 px-3" src={More} alt="More" />
+        </button>
+
+        {showMoreOptions && (
+          <div className="absolute bottom-14 bg-white shadow-lg rounded-md border border-gray-300 py-2 w-40 text-sm">
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+              onClick={() => setShowSettingsModal(true)}
+            >
+              Settings
+            </button>
+            <button className="block w-full text-left px-4 py-2 hover:bg-gray-100">
+              Option 2
+            </button>
+            <button className="block w-full text-left px-4 py-2 hover:bg-gray-100">
+              Logout
+            </button>
+          </div>
+        )}
       </div>
+      {showSettingsModal && (
+        <SettingsModal
+          // offers={offers}
+          // setOffers={setOffers} // You'll need to lift this state up
+          onClose={() => setShowSettingsModal(false)}
+        />
+      )}
     </div>
   );
 }

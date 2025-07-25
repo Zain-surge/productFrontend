@@ -15,6 +15,7 @@ import Sides from "../images/CLIPARTS/SidesS.png";
 import Drinks from "../images/CLIPARTS/DrinksS.png";
 import { useSelector, useDispatch } from "react-redux";
 import { updateOrderStatus } from "../store/ordersSlice";
+import customFetch from "../customFetch";
 
 function AdminStatus({ statusType, orderSource }) {
   const TodayOrders = useSelector((state) => state.orders.todayOrders);
@@ -24,8 +25,31 @@ function AdminStatus({ statusType, orderSource }) {
   const [localStatus, setlocalStatus] = useState(statusType);
   const [valueStatus, setvalueStatus] = useState("Pending");
   let imageSrc, label;
-  const handleStatusChange = (orderId, newStatus) => {
+  const handleStatusChange = async (orderId, newStatus) => {
     dispatch(updateOrderStatus({ order_id: orderId, status: newStatus }));
+    try {
+      const res = await customFetch(
+        "https://thevillage-backend.onrender.com/orders/update-status",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            order_id: orderId,
+            status: newStatus,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error("Failed to update order status");
+      }
+
+      console.log("✅ Status updated successfully");
+    } catch (error) {
+      console.error("❌ Error updating order status:", error);
+    }
   };
   const HeadingStyle = {
     fontFamily: "Poppins, sans-serif",
@@ -75,18 +99,19 @@ function AdminStatus({ statusType, orderSource }) {
   };
   debugger;
   const filteredOrders = TodayOrders.filter((order) => {
-    if (order.order_source == "EPOS") {
+    if (orderSource === "EPOS") {
       return (
         order.order_type === typeMapping[statusType] &&
-        order.order_source === sourceMapping[orderSource]
+        order.order_source === "EPOS"
       );
-    } else {
+    } else if (orderSource === "Website") {
       return (
-        order.order_type === typeMappingWeb[localStatus] &&
-        order.order_source === sourceMapping[orderSource]
+        order.order_type === localStatus && order.order_source === "Website"
       );
     }
+    return false;
   });
+
   const filteredOrdersSorted = [...filteredOrders].sort((a, b) => {
     const statusOrder = { yellow: 1, green: 2, blue: 3 };
     return statusOrder[a.status] - statusOrder[b.status];
@@ -148,121 +173,129 @@ function AdminStatus({ statusType, orderSource }) {
   };
 
   return (
-    <div className="grid grid-cols-3">
-      <div className="col-span-2 flex flex-col items-center my-4">
-        <div className="text-center mb-6">
-          {imageSrc && (
-            <div className="flex justify-center items-center space-x-4">
-              <img
-                src={imageSrc}
-                alt={label}
-                className="w-auto h-20 object-contain p-4"
-                style={{ backgroundColor: "#000000", borderRadius: "20px" }}
-              />
-              <span
-                className="text-5xl font-semibold py-4 px-8 text-white"
+    <div className="grid grid-cols-3 h-[90vh]">
+      {/* Left side - Orders list with fixed header */}
+      <div className="col-span-2 flex flex-col h-[90vh]">
+        {/* Fixed Header Section */}
+        <div className="flex-shrink-0 bg-white px-4 py-4 sticky top-0 z-10">
+          <div className="text-center mb-6">
+            {imageSrc && (
+              <div className="flex justify-center items-center space-x-4">
+                <img
+                  src={imageSrc}
+                  alt={label}
+                  className="w-auto h-20 object-contain p-4"
+                  style={{ backgroundColor: "#000000", borderRadius: "20px" }}
+                />
+                <span
+                  className="text-5xl font-semibold py-4 px-8 text-white"
+                  style={HeadingStyle}
+                >
+                  {label}
+                </span>
+              </div>
+            )}
+          </div>
+          {orderSource == "Website" && (
+            <div className="flex justify-center space-x-4 mb-4">
+              <button
+                onClick={() => handleChangeStatus("delivery")}
+                className="text-2xl font-semibold py-2 px-8 text-white"
                 style={HeadingStyle}
               >
-                {label}
-              </span>
+                Deliveries
+              </button>
+              <button
+                onClick={() => handleChangeStatus("pickup")}
+                className="text-2xl font-semibold py-2 px-8 text-white"
+                style={HeadingStyle}
+              >
+                Pickups
+              </button>
             </div>
           )}
         </div>
-        {orderSource == "Website" && (
-          <div className="flex justify-between space-x-4 mb-4">
-            <button
-              onClick={() => handleChangeStatus("delivery")}
-              className="text-2xl font-semibold py-2 px-8 text-white"
-              style={HeadingStyle}
-            >
-              Deliveries
-            </button>
-            <button
-              onClick={() => handleChangeStatus("pickup")}
-              className="text-2xl font-semibold py-2 px-8 text-white"
-              style={HeadingStyle}
-            >
-              Pickups
-            </button>
-          </div>
-        )}
 
-        <div className="max-w-[90%] w-full px-4 overflow-y-auto h-full custom-scrollbar">
-          {filteredOrders.length === 0 ? (
-            <p className="text-gray-500 text-center">
-              No {label} orders found.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {filteredOrdersSorted.map((order, index) => (
-                <div
-                  key={order.order_id}
-                  className="flex items-center space-x-2"
-                >
-                  <span
-                    className="text-black font-semibold text-5xl mr-5 w-5"
-                    style={NumberStyle}
-                  >
-                    {index + 1}
-                  </span>
+        {/* Scrollable Orders List Container */}
+        <div className="flex-1 pb-4 overflow-hidden">
+          <div className="h-[100%] overflow-y-auto custom-scrollbar3 px-12">
+            {filteredOrders.length === 0 ? (
+              <p className="text-gray-500 text-center">
+                No {label} orders found.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {filteredOrdersSorted.map((order, index) => (
                   <div
-                    className={`flex-1 p-5 cursor-pointer text-3xl ${getStatusColor(
-                      order.status
-                    )}`}
-                    onClick={() => handleSelectOrder(order)}
-                    style={AddressStyle}
+                    key={order.order_id}
+                    className="flex items-center space-x-2"
                   >
-                    {order.order_type === "delivery" ? (
-                      `${order.postal_code}, ${order.street_address}`
-                    ) : (
-                      <>
-                        {order.items?.[0]?.item_name || ""}
-                        {order.items?.[1]
-                          ? `, ${order.items[1].item_name}`
-                          : ""}
-                        {order.items?.length > 2 && "..."}
-                      </>
-                    )}
-                  </div>
+                    <span
+                      className="text-black font-semibold text-5xl mr-5 w-5"
+                      style={NumberStyle}
+                    >
+                      {index + 1}
+                    </span>
+                    <div
+                      className={`flex-1 p-5 cursor-pointer text-3xl ${getStatusColor(
+                        order.status
+                      )}`}
+                      onClick={() => handleSelectOrder(order)}
+                      style={AddressStyle}
+                    >
+                      {order.order_type === "delivery" ? (
+                        `${order.postal_code}, ${order.street_address}`
+                      ) : (
+                        <>
+                          {order.items?.[0]?.item_name || ""}
+                          {order.items?.[1]
+                            ? `, ${order.items[1].item_name}`
+                            : ""}
+                          {order.items?.length > 2 && "..."}
+                        </>
+                      )}
+                    </div>
 
-                  <button
-                    onClick={() => {
-                      debugger;
-                      // Replace this logic with your actual condition
-                      if (order.status === "yellow") {
-                        handleStatusChange(order.order_id, "green");
-                      } else if (order.status === "green") {
-                        handleStatusChange(order.order_id, "blue");
-                      }
-                    }}
-                    className={`flex-2 px-6 py-5  cursor-pointer text-3xl ${getStatusColor(
-                      order.status
-                    )}`}
-                    style={AddressStyle}
-                  >
-                    {order.status === "yellow"
-                      ? "Pending"
-                      : order.status === "green"
-                      ? (localStatus === "delivery" &&
-                          orderSource == "Website") ||
-                        statusType === "Delivery"
-                        ? "On its way"
-                        : localStatus === "pickup"
-                        ? "Ready"
-                        : "Ready"
-                      : order.status === "blue"
-                      ? "Completed"
-                      : "Unknown"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+                    <button
+                      onClick={() => {
+                        debugger;
+                        // Replace this logic with your actual condition
+                        if (order.status === "yellow") {
+                          handleStatusChange(order.order_id, "green");
+                        } else if (order.status === "green") {
+                          handleStatusChange(order.order_id, "blue");
+                        }
+                      }}
+                      className={`flex-2 px-6 py-5  cursor-pointer text-3xl ${getStatusColor(
+                        order.status
+                      )}`}
+                      style={AddressStyle}
+                    >
+                      {order.status === "yellow"
+                        ? "Pending"
+                        : order.status === "green"
+                        ? (localStatus === "delivery" &&
+                            orderSource == "Website") ||
+                          statusType === "Delivery"
+                          ? "On its way"
+                          : localStatus === "pickup"
+                          ? "Ready"
+                          : "Ready"
+                        : order.status === "blue"
+                        ? "Completed"
+                        : "Unknown"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      <div className="col-span-1 px-10 pt-6 border-l h-[90vh] border-gray-600 mt-4">
-        <div className="border-b border-gray-600 pb-6">
-          {" "}
+
+      {/* Right side - Fixed Order Details Panel */}
+      <div className="col-span-1 fixed right-0 top-0 h-[90vh] bg-white border-l border-gray-600 px-10 pt-6 flex flex-col w-1/3">
+        <div className="border-b border-gray-600 pb-6 flex-shrink-0">
           <div className="flex justify-between " style={AddressCartStyle}>
             <span>{selectedOrder?.postal_code}</span>
             <span> Order no. {selectedOrder?.order_id}</span>
@@ -272,7 +305,8 @@ function AdminStatus({ statusType, orderSource }) {
           <div style={AddressCartStyle}>{selectedOrder?.customer_name}</div>
           <div style={AddressCartStyle}>{selectedOrder?.phone_number}</div>
         </div>
-        <div className="border-b border-gray-600 pb-6 h-[55%] overflow-y-auto custom-scrollbar">
+
+        <div className="border-b border-gray-600 pb-6 flex-1 overflow-y-auto custom-scrollbar">
           {selectedOrder?.items.map((item) => (
             <div className="grid grid-cols-7 py-2" key={item.item_id}>
               <div className="col-span-1 text-4xl" style={NumberStyle}>
@@ -306,7 +340,8 @@ function AdminStatus({ statusType, orderSource }) {
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-3">
+
+        <div className="grid grid-cols-3 flex-shrink-0">
           <div
             className="flex col-span-2 p-4 m-4 text-white text-2xl justify-center items-center"
             style={TotalAmountStyle}

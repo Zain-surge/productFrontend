@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+
 import { motion } from "framer-motion"; // Import Framer Motion
 
 import { Minus, Plus } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { addToCart } from "../store/cartSlice";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { colors } from "../colors";
 
 const CartModal = ({ isOpen, onClose, item }) => {
   const sizeOptions = Object.keys(item.price);
@@ -13,8 +15,15 @@ const CartModal = ({ isOpen, onClose, item }) => {
   const preSelectedSauces = item.sauces || [];
   const preSelectedCheeses = item.cheese || [];
   const [expanded, setExpanded] = useState(false);
+  const [reviewNote, setReviewNote] = useState("");
 
-  const sauces = ["Mayo", "Ketchup", "Chilli sauce", "Sweet chilli"];
+  const sauces = [
+    "Mayo",
+    "Ketchup",
+    "Chilli sauce",
+    "Sweet chilli",
+    "Garlic Sauce",
+  ];
 
   const cheeses = [
     "Mozzarella",
@@ -68,9 +77,32 @@ const CartModal = ({ isOpen, onClose, item }) => {
   const [selectedToppings, setSelectedToppings] = useState([...validToppings]);
   const [selectedSauces, setSelectedSauces] = useState([...validSauces]);
   const [selectedCheeses, setSelectedCheeses] = useState([...validCheese]);
-  const [selectedBase, setSelectedBase] = useState([]);
+  const [selectedBase, setSelectedBase] = useState(["Tomato"]);
   const [selectedCrust, setSelectedCrust] = useState("Normal");
+  const [noSalad, setNoSalad] = useState(false);
+  const [noSauce, setNoSauce] = useState(false);
+  const [noCream, setNoCream] = useState(false);
+
+  const [selectedDrink, setSelectedDrink] = useState(""); // if meal is selected
+
   const [isMeal, setIsMeal] = useState(false);
+  const modalRef = useRef(null);
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isOpen, onClose]);
+
   const dispatch = useDispatch();
   const flavors = [
     "Apple & Raspberry",
@@ -100,7 +132,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
   };
 
   const sortedOptions = getSortedOptions();
-  const visibleOptions = expanded ? sortedOptions : sortedOptions.slice(0, 4);
+  const visibleOptions = sortedOptions;
 
   const handleSizeSelect = (size) => {
     setSelectedSize(size);
@@ -119,10 +151,11 @@ const CartModal = ({ isOpen, onClose, item }) => {
       return;
     }
 
-    setSelectedToppings((prev) =>
-      prev.includes(topping)
-        ? prev.filter((t) => t !== topping)
-        : [...prev, topping]
+    setSelectedToppings(
+      (prev) =>
+        prev.includes(topping)
+          ? prev.filter((t) => t !== topping)
+          : [...prev, topping] // appends to end
     );
   };
 
@@ -145,10 +178,11 @@ const CartModal = ({ isOpen, onClose, item }) => {
       return;
     }
 
-    setSelectedCheeses((prev) =>
-      prev.includes(cheese)
-        ? prev.filter((t) => t !== cheese)
-        : [...prev, cheese]
+    setSelectedCheeses(
+      (prev) =>
+        prev.includes(cheese)
+          ? prev.filter((c) => c !== cheese)
+          : [...prev, cheese] // keep new ones at end
     );
   };
   const toggleMeal = () => {
@@ -156,7 +190,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
   };
   const calculatePrice = () => {
     debugger;
-    console.log("DETAILS OF ITEM:", item);
+    console.log("DETAILS OF ITEM:", selectedSauces);
     let basePrice = 0;
     if (
       item.Type == "Pizza" ||
@@ -175,6 +209,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
     let basesPrice = 0;
     let mealPrice = 0;
     let cheesePrice = 0;
+    let saucePrice = 0;
 
     if (selectedCrust === "Stuffed") {
       if (selectedSize === "10 inch") crustPrice = 1.5;
@@ -204,14 +239,31 @@ const CartModal = ({ isOpen, onClose, item }) => {
       else if (selectedSize === "18 inch")
         cheesePrice = 5.5 * (selectedCheeses.length - validCheese.length);
     }
-    if (selectedBase.length > 0) {
-      if (selectedSize === "10 inch") basesPrice = 0.99;
-      else if (selectedSize === "12 inch") basesPrice = 1.5;
-      else if (selectedSize === "18 inch") basesPrice = 4.0;
+    if (selectedBase.includes("BBQ")) {
+      if (selectedSize === "10 inch") basesPrice += 0.99;
+      else if (selectedSize === "12 inch") basesPrice += 1.5;
+      else if (selectedSize === "18 inch") basesPrice += 4.0;
     }
+
+    if (selectedBase.includes("Garlic")) {
+      if (selectedSize === "10 inch") basesPrice += 0.99;
+      else if (selectedSize === "12 inch") basesPrice += 1.5;
+      else if (selectedSize === "18 inch") basesPrice += 4.0;
+    }
+
     if (isMeal) {
       mealPrice = 1.9;
     }
+    const extraSauces = selectedSauces.filter(
+      (sauce) => !preSelectedSauces.includes(sauce)
+    );
+    extraSauces.forEach((sauce) => {
+      if (["Garlic Sauce", "Chilli sauce"].includes(sauce)) {
+        saucePrice += 0.75;
+      } else {
+        saucePrice += 0.5;
+      }
+    });
     console.log(typeof basePrice);
     console.log(typeof mealPrice);
     console.log("HEJNJBFJB", basePrice + mealPrice);
@@ -222,11 +274,16 @@ const CartModal = ({ isOpen, onClose, item }) => {
       toppingsPrice +
       basesPrice +
       mealPrice +
-      cheesePrice
+      cheesePrice +
+      saucePrice
     );
   };
 
   const handleBaseToggle = (base) => {
+    if (base === "Tomato") {
+      // Do nothing – always required
+      return;
+    }
     setSelectedBase((prev) =>
       prev.includes(base) ? prev.filter((t) => t !== base) : [...prev, base]
     );
@@ -244,6 +301,14 @@ const CartModal = ({ isOpen, onClose, item }) => {
     const descriptionParts = [];
 
     if (selectedSize) descriptionParts.push(`Size: ${selectedSize}`);
+    if (item.Type === "Burgers") {
+      if (noSalad) descriptionParts.push("No Salad");
+      if (noSauce) descriptionParts.push("No Sauce");
+    }
+    if (item.Type === "Milkshake" && noCream) {
+      descriptionParts.push("No Cream");
+    }
+
     if (item.Type === "Drinks" && item.title === "J20 GLASS BOTTLE")
       descriptionParts.push(`Flavor: ${selectedFlavor}`);
     if (item.Type === "Pizza" || item.Type === "GarlicBread") {
@@ -258,7 +323,13 @@ const CartModal = ({ isOpen, onClose, item }) => {
         descriptionParts.push(`Extra Toppings: ${extraToppings.join(", ")}`);
     }
 
-    if (isMeal) descriptionParts.push("MEAL");
+    if (isMeal) {
+      descriptionParts.push("MEAL");
+      if (selectedDrink) descriptionParts.push(`Drink: ${selectedDrink}`);
+    }
+
+    if (reviewNote.trim())
+      descriptionParts.push(`Review Note: ${reviewNote.trim()}`);
 
     const description = descriptionParts.join("\n");
 
@@ -311,7 +382,8 @@ const CartModal = ({ isOpen, onClose, item }) => {
       transition={{ duration: 0.4 }} // Smooth fade-in/out for backdrop
     >
       <motion.div
-        className="bg-white rounded-lg w-[100%] lg:w-[60%] relative shadow-xl overflow-hidden"
+        ref={modalRef}
+        className="bg-white rounded-xl w-[100%] lg:w-[60%] relative shadow-xl max-h-[80vh] flex flex-col"
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
@@ -319,8 +391,8 @@ const CartModal = ({ isOpen, onClose, item }) => {
       >
         {/* Modal Header */}
         <div
-          className="text-white px-4 lg:px-6 py-1 lg:py-4 flex justify-between items-center"
-          style={{ backgroundColor: "#AA1B17" }}
+          className="text-white px-4 lg:px-6 py-1 lg:py-4 flex justify-between items-center rounded-t-xl"
+          style={{ backgroundColor: colors.primaryRed }}
         >
           <h2
             className="text-base lg:text-2xl"
@@ -334,7 +406,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
         </div>
 
         {/* Modal Body */}
-        <div className="p-4 lg:p-4">
+        <div className="p-4 lg:p-4 overflow-y-auto" style={{ flexGrow: 1 }}>
           <div className="grid grid-cols-2 lg:grid-cols-10 gap-4 mb-4">
             <div className="col-span-2">
               <motion.img
@@ -354,6 +426,226 @@ const CartModal = ({ isOpen, onClose, item }) => {
                 >
                   {item.title}
                 </p>
+
+                {item.Type === "Shawarma" && item.price["naan"] && (
+                  <>
+                    {/* Pizza Size */}
+                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                      <div className="col-span-1">
+                        <h3
+                          className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                          style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                        >
+                          Type
+                        </h3>
+                      </div>
+                      <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1">
+                        {sizeOptions.map((size) => (
+                          <motion.button
+                            key={size}
+                            onClick={() => handleSizeSelect(size)}
+                            className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm transition-colors rounded-lg  ${
+                              selectedSize === size
+                                ? "bg-green-800 text-white"
+                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            }`}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            {size.toUpperCase()}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {item.Type === "Drinks" &&
+                  item.title === "J20 GLASS BOTTLE" && (
+                    <>
+                      {/* Pizza Size */}
+                      <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                        <div className="col-span-1">
+                          <h3
+                            className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                            style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                          >
+                            Flavor
+                          </h3>
+                        </div>
+                        <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1">
+                          {flavors.map((flavor) => (
+                            <motion.button
+                              key={flavor}
+                              onClick={() => handleFlavorSelect(flavor)}
+                              className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm transition-colors rounded-lg  ${
+                                selectedFlavor === flavor
+                                  ? "bg-green-800 text-white"
+                                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              }`}
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              {flavor.toUpperCase()}
+                            </motion.button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                {item.Type === "Shawarma" && item.price["small"] && (
+                  <>
+                    {/* Pizza Size */}
+                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                      <div className="col-span-1">
+                        <h3
+                          className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                          style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                        >
+                          Size
+                        </h3>
+                      </div>
+                      <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1">
+                        {sizeOptions.map((size) => (
+                          <motion.button
+                            key={size}
+                            onClick={() => handleSizeSelect(size)}
+                            className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm transition-colors rounded-lg  ${
+                              selectedSize === size
+                                ? "bg-green-800 text-white"
+                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            }`}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            {size.toUpperCase()}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {item.Type === "Burgers" && (
+                  <>
+                    {/* Pizza Size */}
+                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                      <div className="col-span-1">
+                        <h3
+                          className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                          style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                        >
+                          Size
+                        </h3>
+                      </div>
+                      <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1">
+                        {sizeOptions.map((size) => (
+                          <motion.button
+                            key={size}
+                            onClick={() => handleSizeSelect(size)}
+                            className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm transition-colors rounded-lg  ${
+                              selectedSize === size
+                                ? "bg-green-800 text-white"
+                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            }`}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            {size.toUpperCase()}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* No Salad & No Sauce */}
+                  </>
+                )}
+
+                {(item.Type === "Burgers" ||
+                  item.Type == "Wraps" ||
+                  item.Type == "Shawarma") && (
+                  <>
+                    {/* Pizza Size */}
+
+                    {/* No Salad & No Sauce */}
+                    <div className="col-span-1 flex items-center mt-2">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={noSalad}
+                          onChange={() => setNoSalad(!noSalad)}
+                          className="hidden"
+                        />
+                        <div
+                          className={`w-5 h-5 flex justify-center items-center border rounded transition-colors ${
+                            noSalad
+                              ? "bg-green-800 border-green-800"
+                              : "bg-gray-200 border-gray-400"
+                          }`}
+                        >
+                          {noSalad && <span className="text-white">✔</span>}
+                        </div>
+                        <span
+                          className="text-sm lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                          style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                        >
+                          No Salad
+                        </span>
+                      </label>
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={noSauce}
+                          onChange={() => setNoSauce(!noSauce)}
+                          className="hidden"
+                        />
+                        <div
+                          className={`w-5 h-5 flex justify-center items-center border rounded transition-colors ${
+                            noSauce
+                              ? "bg-green-800 border-green-800"
+                              : "bg-gray-200 border-gray-400"
+                          }`}
+                        >
+                          {noSauce && <span className="text-white">✔</span>}
+                        </div>
+                        <span
+                          className="text-sm lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                          style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                        >
+                          No Sauce
+                        </span>
+                      </label>
+                    </div>
+                  </>
+                )}
+                {item.Type === "Milkshake" && (
+                  <div className="col-span-1 flex items-center mt-2">
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={noCream}
+                        onChange={() => setNoCream(!noCream)}
+                        className="hidden"
+                      />
+                      <div
+                        className={`w-5 h-5 flex justify-center items-center border rounded transition-colors ${
+                          noCream
+                            ? "bg-green-800 border-green-800"
+                            : "bg-gray-200 border-gray-400"
+                        }`}
+                      >
+                        {noCream && <span className="text-white">✔</span>}
+                      </div>
+                      <span
+                        className="text-sm lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                        style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                      >
+                        No Cream
+                      </span>
+                    </label>
+                  </div>
+                )}
+
                 {(item.Type === "Burgers" ||
                   item.Type == "Wraps" ||
                   item.Type == "Shawarma") && (
@@ -377,7 +669,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                           {isMeal && <span className="text-white">✔</span>}
                         </div>
                         <span
-                          className="text-xs lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                          className="text-sm lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
                           style={{ fontFamily: "Bambino", fontWeight: 350 }}
                         >
                           Make it a Meal (Chips & Drinks)
@@ -386,137 +678,41 @@ const CartModal = ({ isOpen, onClose, item }) => {
                     </div>
                   </>
                 )}
-                {item.Type === "Shawarma" && item.price["naan"] && (
-                  <>
-                    {/* Pizza Size */}
-                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
-                      <div className="col-span-1">
-                        <h3
-                          className="text-sm lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
-                          style={{ fontFamily: "Bambino", fontWeight: 350 }}
-                        >
-                          Type
-                        </h3>
-                      </div>
-                      <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1">
-                        {sizeOptions.map((size) => (
-                          <motion.button
-                            key={size}
-                            onClick={() => handleSizeSelect(size)(size)}
-                            className={`px-2 lg:px-4 py-0 lg:py-1 text-xs lg:text-sm transition-colors rounded-lg  ${
-                              selectedSize === size
-                                ? "bg-green-800 text-white"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                            }`}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            {size.toUpperCase()}
-                          </motion.button>
-                        ))}
-                      </div>
+                {isMeal && (
+                  <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                    <div className="col-span-1">
+                      <h3
+                        className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                        style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                      >
+                        Drink
+                      </h3>
                     </div>
-                  </>
-                )}
-
-                {item.Type === "Drinks" &&
-                  item.title === "J20 GLASS BOTTLE" && (
-                    <>
-                      {/* Pizza Size */}
-                      <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
-                        <div className="col-span-1">
-                          <h3
-                            className="text-sm lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
-                            style={{ fontFamily: "Bambino", fontWeight: 350 }}
-                          >
-                            Flavor
-                          </h3>
-                        </div>
-                        <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1">
-                          {flavors.map((flavor) => (
-                            <motion.button
-                              key={flavor}
-                              onClick={() => handleFlavorSelect(flavor)}
-                              className={`px-2 lg:px-4 py-0 lg:py-1 text-xs lg:text-sm transition-colors rounded-lg  ${
-                                selectedFlavor === flavor
-                                  ? "bg-green-800 text-white"
-                                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                              }`}
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              {flavor.toUpperCase()}
-                            </motion.button>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                {item.Type === "Shawarma" && item.price["small"] && (
-                  <>
-                    {/* Pizza Size */}
-                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
-                      <div className="col-span-1">
-                        <h3
-                          className="text-sm lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
-                          style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                    <div className="col-span-4 flex flex-wrap justify-start items-center gap-1">
+                      {[
+                        "Coca Cola",
+                        "7Up",
+                        "Diet Coca Cola",
+                        "Fanta",
+                        "Pepsi",
+                        "Sprite",
+                      ].map((drink) => (
+                        <motion.button
+                          key={drink}
+                          onClick={() => setSelectedDrink(drink)}
+                          className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm rounded transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                            selectedDrink === drink
+                              ? "bg-green-800 text-white"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          }`}
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.95 }}
                         >
-                          Size
-                        </h3>
-                      </div>
-                      <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1">
-                        {sizeOptions.map((size) => (
-                          <motion.button
-                            key={size}
-                            onClick={() => handleSizeSelect(size)}
-                            className={`px-2 lg:px-4 py-0 lg:py-1 text-xs lg:text-sm transition-colors rounded-lg  ${
-                              selectedSize === size
-                                ? "bg-green-800 text-white"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                            }`}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            {size.toUpperCase()}
-                          </motion.button>
-                        ))}
-                      </div>
+                          {drink}
+                        </motion.button>
+                      ))}
                     </div>
-                  </>
-                )}
-
-                {item.Type === "Burgers" && (
-                  <>
-                    {/* Pizza Size */}
-                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
-                      <div className="col-span-1">
-                        <h3
-                          className="text-sm lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
-                          style={{ fontFamily: "Bambino", fontWeight: 350 }}
-                        >
-                          Size
-                        </h3>
-                      </div>
-                      <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1">
-                        {sizeOptions.map((size) => (
-                          <motion.button
-                            key={size}
-                            onClick={() => handleSizeSelect(size)}
-                            className={`px-2 lg:px-4 py-0 lg:py-1 text-xs lg:text-sm transition-colors rounded-lg  ${
-                              selectedSize === size
-                                ? "bg-green-800 text-white"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                            }`}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            {size.toUpperCase()}
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
+                  </div>
                 )}
 
                 {(item.Type === "Pizza" || item.Type == "GarlicBread") && (
@@ -525,7 +721,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                     <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
                       <div className="col-span-1">
                         <h3
-                          className="text-sm lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                          className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
                           style={{ fontFamily: "Bambino", fontWeight: 350 }}
                         >
                           Size
@@ -536,7 +732,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                           <motion.button
                             key={size}
                             onClick={() => handleSizeSelect(size)}
-                            className={`px-2 lg:px-4 py-0 lg:py-1 text-xs lg:text-sm transition-colors rounded-lg  ${
+                            className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm transition-colors rounded-lg  ${
                               selectedSize === size
                                 ? "bg-green-800 text-white"
                                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -554,7 +750,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                     <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
                       <div className="col-span-1">
                         <h3
-                          className="text-sm lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                          className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
                           style={{ fontFamily: "Bambino", fontWeight: 350 }}
                         >
                           Toppings
@@ -575,7 +771,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                                   ? handleToppingToggle(option)
                                   : handleCheeseToggle(option)
                               }
-                              className={`px-2 lg:px-4 py-0 lg:py-1 text-xs lg:text-sm rounded transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                              className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm rounded transition-all duration-200 transform hover:scale-105 active:scale-95 ${
                                 isSelected
                                   ? "bg-green-800 text-white"
                                   : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -585,34 +781,6 @@ const CartModal = ({ isOpen, onClose, item }) => {
                             </button>
                           );
                         })}
-                        {/* {cheeses.map((cheese) => (
-                          <motion.button
-                            key={cheese}
-                            onClick={() => handleCheeseToggle(cheese)}
-                            className={`px-2 lg:px-4 py-0 lg:py-1 text-xs lg:text-sm transition-colors rounded-lg  ${
-                              selectedCheeses.includes(cheese)
-                                ? "bg-green-800 text-white"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                            }`}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            {cheese}
-                          </motion.button>
-                        ))} */}
-                        {sortedOptions.length > 4 && (
-                          <button
-                            onClick={() => setExpanded(!expanded)}
-                            className="mt-2 text-sm flex items-center gap-1 text-green-800 hover:text-green-600 transition-colors duration-200"
-                          >
-                            {expanded ? "Show Less" : "See More"}
-                            {expanded ? (
-                              <ChevronUp size={16} />
-                            ) : (
-                              <ChevronDown size={16} />
-                            )}
-                          </button>
-                        )}
                       </div>
                     </div>
 
@@ -620,7 +788,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                     <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
                       <div className="col-span-1">
                         <h3
-                          className="text-sm lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                          className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
                           style={{ fontFamily: "Bambino", fontWeight: 350 }}
                         >
                           Base
@@ -631,7 +799,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                           <motion.button
                             key={base}
                             onClick={() => handleBaseToggle(base)}
-                            className={`px-2 lg:px-4 py-0 lg:py-1 text-xs lg:text-sm rounded-lg  ${
+                            className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm rounded-lg  ${
                               selectedBase.includes(base)
                                 ? "bg-green-800 text-white"
                                 : "bg-gray-200 text-gray-700"
@@ -660,7 +828,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                           <motion.button
                             key={crust}
                             onClick={() => handleCrustSelect(crust)}
-                            className={`px-2 lg:px-4 py-0 lg:py-1 text-xs lg:text-sm rounded-lg  ${
+                            className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm rounded-lg  ${
                               selectedCrust === crust
                                 ? "bg-green-800 text-white"
                                 : "bg-gray-200 text-gray-700"
@@ -676,7 +844,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                     <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
                       <div className="col-span-1">
                         <h3
-                          className="text-sm lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                          className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
                           style={{ fontFamily: "Bambino", fontWeight: 350 }}
                         >
                           Sauce Dips
@@ -687,7 +855,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                           <motion.button
                             key={sauce}
                             onClick={() => handleSauceToggle(sauce)}
-                            className={`px-2 lg:px-4 py-0 lg:py-1 text-xs lg:text-sm  transition-colors rounded-lg  ${
+                            className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm  transition-colors rounded-lg  ${
                               selectedSauces.includes(sauce)
                                 ? "bg-green-800 text-white"
                                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -706,7 +874,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                 <div className="grid grid-cols-1 lg:grid-cols-5 pt-4">
                   <div className="col-span-1">
                     <h3
-                      className="text-sm lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                      className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
                       style={{ fontFamily: "Bambino", fontWeight: 350 }}
                     >
                       Quantity
@@ -715,7 +883,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                   <div className="col-span-4 flex items-center space-x-2">
                     <motion.button
                       onClick={handleQuantityDecrease}
-                      className="px-2 lg:px-4 py-0 lg:py-1 text-xs lg:text-sm bg-gray-300 text-gray-700 rounded"
+                      className="px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm bg-gray-300 text-gray-700 rounded"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -724,12 +892,32 @@ const CartModal = ({ isOpen, onClose, item }) => {
                     <span className="text-sm lg:text-base">{quantity}</span>
                     <motion.button
                       onClick={handleQuantityIncrease}
-                      className="px-2 lg:px-4 py-0 lg:py-1 text-xs lg:text-sm bg-gray-300 text-gray-700 rounded"
+                      className="px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm bg-gray-300 text-gray-700 rounded"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.95 }}
                     >
                       <Plus />
                     </motion.button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                  <div className="col-span-1">
+                    <h3
+                      className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                      style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                    >
+                      Review Note
+                    </h3>
+                  </div>
+                  <div className="col-span-4">
+                    <textarea
+                      value={reviewNote}
+                      onChange={(e) => setReviewNote(e.target.value)}
+                      className="w-full p-2 border rounded text-sm"
+                      placeholder="Write any special instructions or notes..."
+                      rows={1}
+                    />
                   </div>
                 </div>
               </div>
@@ -738,14 +926,14 @@ const CartModal = ({ isOpen, onClose, item }) => {
         </div>
 
         {/* Modal Footer */}
-        <div className="bg-gray-200 px-4 lg:px-6 py-2 lg:py-4 flex justify-between items-center">
+        <div className="bg-gray-200 px-4 lg:px-6 py-2 lg:py-4 flex justify-between items-center rounded-b-xl">
           <div className="text-sm lg:text-lg font-semibold">
             Total: £{(calculatePrice() * quantity).toFixed(2)}
           </div>
           <div>
             <motion.button
               onClick={onClose}
-              className="bg-gray-300 text-gray-800 text-xs lg:text-base px-1 lg:px-4 py-1 lg:py-2 rounded mr-2"
+              className="bg-gray-300 text-gray-800 text-sm lg:text-base px-1 lg:px-4 py-2 lg:py-2 rounded mr-2"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
               style={{ fontFamily: "Bambino", fontWeight: 450 }}
@@ -754,13 +942,13 @@ const CartModal = ({ isOpen, onClose, item }) => {
             </motion.button>
             <motion.button
               onClick={handleAddToCart}
-              className="text-white px-1 lg:px-4 py-1 lg:py-2 rounded text-xs lg:text-base"
+              className="text-white px-2 lg:px-4 py-1 lg:py-1 rounded text-sm lg:text-base"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
               style={{
                 fontFamily: "Bambino",
                 fontWeight: 450,
-                backgroundColor: "#074711",
+                backgroundColor: colors.primaryGreen,
               }}
             >
               Add to Cart

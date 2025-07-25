@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { colors } from "../colors";
 
 const AuthModal = ({ onClose, onLogin, onSignUp, onGuest }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -124,16 +127,19 @@ const AuthModal = ({ onClose, onLogin, onSignUp, onGuest }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
     if (validateForm()) {
       if (isLogin) {
-        onLogin(formData);
+        onLogin(formData); // Call actual login logic
       } else {
         if (passwordValidations.passwordsMatch) {
-          onSignUp(formData);
+          onSignUp(formData); // Call actual sign-up logic
         } else {
-          alert("Passwords do not match");
+          toast.error("Passwords do not match!");
         }
       }
+    } else {
+      toast.error("Please fill all required fields correctly.");
     }
   };
 
@@ -428,7 +434,7 @@ const AuthModal = ({ onClose, onLogin, onSignUp, onGuest }) => {
             <button
               type="submit"
               className="w-full bg-blue-500 text-white p-1 lg:p-2 rounded hover:bg-blue-600 text-sm lg:text-base"
-              style={{ backgroundColor: "#074711" }}
+              style={{ backgroundColor: colors.primaryGreen }}
             >
               {isLogin ? "Login" : "Sign Up"}
             </button>
@@ -444,12 +450,18 @@ const AuthModal = ({ onClose, onLogin, onSignUp, onGuest }) => {
           <button
             onClick={onGuest}
             className="mt-4 w-full bg-gray-500 text-white p-1 lg:p-2 rounded hover:bg-gray-600 text-sm lg:text-base"
-            style={{ backgroundColor: "#AA1B17" }}
+            style={{ backgroundColor: colors.primaryRed }}
           >
             Continue as Guest
           </button>
         </motion.div>
       </motion.div>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar
+        newestOnTop
+      />
     </AnimatePresence>
   );
 };

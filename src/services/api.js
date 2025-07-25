@@ -1,4 +1,5 @@
 import axios from "axios";
+import { FRONTEND_ID } from "../config"; // adjust path as needed
 
 const API = axios.create({
   baseURL: "https://thevillage-backend.onrender.com",
@@ -8,17 +9,11 @@ const API = axios.create({
   },
 });
 
-// Interceptor to log request details
-// API.interceptors.response.use(
-//   (response) => response,
-//   (error) => {
-//     if (error.response && error.response.status === 401) {
-//       // Redirect to login or refresh session
-//       window.location.href = "/login";
-//     }
-//     return Promise.reject(error);
-//   }
-// );
+// ✅ Interceptor to inject x-client-id into every request
+API.interceptors.request.use((config) => {
+  config.headers["x-client-id"] = FRONTEND_ID;
+  return config;
+});
 
 export const getCart = async (userId) => {
   console.log(userId);
@@ -36,8 +31,9 @@ export const signUpUser = async (formData) => {
 export const verifyOtp = async (data, otp) => {
   return await API.post("/auth/verify-otp", { data, otp });
 };
+
 export const logout = async () => {
-  return await API.post("auth/logout", {}, { withCredentials: true });
+  return await API.post("/auth/logout", {}, { withCredentials: true });
 };
 
 export const checkSession = async () => {

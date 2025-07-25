@@ -1,5 +1,6 @@
 import React from "react";
 import background from "../images/Pizza1.jpeg";
+import { colors } from "../colors";
 
 function ItemCard(props) {
   const TitleTextStyle = {
@@ -17,12 +18,12 @@ function ItemCard(props) {
   const PriceTextStyle = {
     fontFamily: "Bambino",
     fontWeight: 550,
-    color: "#074711",
+    color: colors.primaryGreen,
   };
   const AddCartTextStyle = {
     fontFamily: "Bambino",
     fontWeight: 450,
-    backgroundColor: "#AA1B17",
+    backgroundColor: colors.primaryRed,
   };
 
   // Extract the first price if it's an object

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import customFetch from "../customFetch";
+import { colors } from "../colors";
 
 function AdminLogin({ setIsAdmin }) {
   const [credentials, setCredentials] = useState({
@@ -11,7 +13,7 @@ function AdminLogin({ setIsAdmin }) {
     console.log("TRYINGGGGGGGGGGGGGGGGGGGGGGG");
     e.preventDefault();
     try {
-      const response = await fetch(
+      const response = await customFetch(
         "https://thevillage-backend.onrender.com/auth/admin-login",
         {
           method: "POST",
@@ -66,7 +68,7 @@ function AdminLogin({ setIsAdmin }) {
           <button
             type="submit"
             className="w-full p-3 rounded  transition font-bold"
-            style={{ backgroundColor: "#AA1B17" }}
+            style={{ backgroundColor: colors.primaryRed }}
           >
             Login
           </button>
