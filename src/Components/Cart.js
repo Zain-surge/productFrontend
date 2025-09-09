@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowLeft, Plus, Minus, Trash2 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { addToCart } from "../store/cartSlice";
 import {
   updateItemQuantity,
@@ -9,7 +9,6 @@ import {
   clearCart,
 } from "../store/cartSlice";
 import {
-  Elements,
   CardElement,
   useStripe,
   useElements,
@@ -20,6 +19,9 @@ import { colors } from "../colors";
 import { useSelector, useDispatch } from "react-redux";
 import logo from "../images/tvpLogo.png";
 import basket from "../images/basket.png";
+import { getMenuItemImage } from "./menuItemImageMapping"; // Import your mapping function
+
+
 const pageVariants = {
   initial: { opacity: 0, x: "100%" },
   in: { opacity: 1, x: 0 },
@@ -50,6 +52,10 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
   const shouldRenderCart = location.pathname === "/";
   const [checkoutStage, setCheckoutStage] = useState("cart");
 
+  const offers = useSelector((state) => state.offers.list);
+
+
+
   const user = useSelector((state) => state.user?.user?.userDetails);
   const [formData, setFormData] = useState({
     name: user ? user.name : "",
@@ -62,7 +68,7 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
       zipCode: user ? user.postal_code : "",
     },
     deliveryOption: "delivery",
-    paymentOption: "online",
+    paymentOption: "Card",
     reviewNotes: "",
   });
   const [error, setError] = useState(null);
@@ -147,7 +153,60 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
     0
   );
   const deliveryFee = formData.deliveryOption === "delivery" ? 1.5 : 0;
-  const finalTotal = totalPrice + deliveryFee;
+
+  // Add this after the existing totalPrice calculation
+  const { discountAmount, discountedTotal, finalDeliveryFee, activeOffer, appliedOffers } = useMemo(() => {
+    const activeOffers = offers?.filter(offer => offer.value === true) || [];
+
+    let bestDiscount = 0;
+    let bestOffer = null;
+    let finalDeliveryFee = deliveryFee;
+    let appliedOffers = [];
+
+    activeOffers.forEach(offer => {
+      const isDeliveryFreeOffer = offer.offer_text.toLowerCase().includes('free delivery');
+      const isPercentageOffer = offer.offer_text.match(/(\d+)% OFF/);
+
+      if (isDeliveryFreeOffer) {
+        const minAmount = parseFloat(offer.offer_text.match(/£(\d+)/)?.[1] || 0);
+        if (totalPrice >= minAmount) {
+          const deliverySaving = deliveryFee;
+          if (deliverySaving > bestDiscount) {
+            bestDiscount = deliverySaving;
+            bestOffer = offer;
+            finalDeliveryFee = 0;
+          }
+        }
+      } else if (isPercentageOffer) {
+        const percentage = parseInt(isPercentageOffer[1]);
+        const minAmount = parseFloat(offer.offer_text.match(/£(\d+)/)?.[1] || 0);
+        if (totalPrice >= minAmount || minAmount === 0) {
+          const discount = (totalPrice * percentage) / 100;
+          if (discount > bestDiscount) {
+            bestDiscount = discount;
+            bestOffer = offer;
+            finalDeliveryFee = deliveryFee; // Reset delivery fee
+          }
+        }
+      }
+    });
+
+    const discountedTotal = bestOffer?.offer_text.toLowerCase().includes('free delivery')
+      ? totalPrice
+      : totalPrice - bestDiscount;
+
+    appliedOffers = bestOffer ? [bestOffer] : [];
+
+    return {
+      discountAmount: bestOffer?.offer_text.toLowerCase().includes('free delivery') ? 0 : bestDiscount,
+      discountedTotal,
+      finalDeliveryFee,
+      activeOffer: bestOffer,
+      appliedOffers
+    };
+  }, [offers, totalPrice, deliveryFee]);
+
+  const finalTotal = discountedTotal + finalDeliveryFee;
   const handleIncreaseQuantity = (title) => {
     dispatch(updateItemQuantity({ title: title, change: 1 }));
   };
@@ -180,7 +239,7 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
       setFormData((prev) => ({
         ...prev,
         deliveryOption: "pickup",
-        paymentOption: "cod", // Force to COD when pickup
+        paymentOption: "Cash on Delivery", // Force to COD when pickup
         address: {
           street: "",
           city: "",
@@ -207,133 +266,43 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError(null);
-    if (
-      checkoutStage === "customer-info" &&
-      formData.deliveryOption === "delivery" &&
-      totalPrice < 8.5
-    ) {
+    setFormError("");
+
+    // Validation
+    if (checkoutStage === "customer-info" && formData.deliveryOption === "delivery" && totalPrice < 8.5) {
       setFormError("Cannot place a delivery order less than £8.50.");
       return;
     }
-    const normalizedInput = formData.address.zipCode
-      .replace(/\s/g, "")
-      .toLowerCase();
-    const normalizedPostalCodes = postalCodes.map((code) =>
-      code.replace(/\s/g, "").toLowerCase()
-    );
 
-    if (
-      checkoutStage === "customer-info" &&
-      formData.deliveryOption === "delivery" &&
-      !normalizedPostalCodes.includes(normalizedInput)
-    ) {
-      setFormError("Invalid postal code. Please select from the dropdown.");
-      return;
-    }
+    // if (
+    //   checkoutStage === "customer-info" &&
+    //   formData.deliveryOption === "delivery" &&
+    //   !normalizedPostalCodes.includes(normalizedInput)
+    // ) {
+    //   setFormError("Invalid postal code. Please select from the dropdown.");
+    //   return;
+    // }
 
-    setFormError("");
-
-    if (
-      checkoutStage === "customer-info" &&
-      formData.paymentOption == "online"
-    ) {
-      setCheckoutStage("payment");
-      return;
-    } else if (
-      checkoutStage === "customer-info" &&
-      formData.paymentOption != "online"
-    ) {
-      // Step 3: Check if User Exists in Database
-      let userId = null;
-      let guestId = null;
-
-      try {
-        if (user) {
-          userId = user.user_id;
-        } else {
-          // Create a guest entry if the user doesn't exist
-          const guestResponse = await axiosInstance.post(
-            "/users/create-guest",
-            {
-              name: formData.name,
-              email: formData.email,
-              phone_number: formData.phone,
-              street_address: formData.address.street,
-              city: formData.address.city,
-              county: "",
-              postal_code: formData.address.zipCode,
-            }
-          );
-
-          if (guestResponse.data && guestResponse.data.guest_id) {
-            guestId = guestResponse.data.guest_id;
-          }
-        }
-      } catch (userError) {
-        console.error("Error checking user existence:", userError);
-        setError("User verification failed. Please try again.");
+    // Handle different checkout stages
+    if (checkoutStage === "customer-info") {
+      if (formData.paymentOption === "Card") {
+        setCheckoutStage("payment");
         return;
+      } else {
+        // Process non-online payment order
+        await processOrderWithFullCreate(null);
       }
-
-      // Step 4: Insert Order into Database
-      let orderId;
-      try {
-        const transactionId = Math.floor(
-          100000000000 + Math.random() * 900000000000
-        ).toString();
-
-        const orderResponse = await axiosInstance.post("/orders/create", {
-          user_id: userId,
-          guest_id: guestId,
-          transaction_id: transactionId,
-          payment_type: formData.paymentOption,
-          order_type: formData.deliveryOption,
-          total_price: totalPrice,
-          extra_notes: formData.extraNotes || "",
-          status: "yellow",
-          order_source: "Website",
-          driver_id: null,
-        });
-
-        if (orderResponse.data && orderResponse.data.order_id) {
-          orderId = orderResponse.data.order_id;
-        } else {
-          throw new Error("Failed to create order.");
-        }
-      } catch (orderError) {
-        console.error("Order creation error:", orderError);
-        setError("Payment was successful, but order creation failed.");
-        return;
-      }
-
-      // Step 5: Insert Order Items into Database
-      try {
-        await Promise.all(
-          cart.map(async (item) => {
-            await axiosInstance.post("/orders/add-item", {
-              order_id: orderId,
-              item_id: item.id,
-              quantity: item.itemQuantity,
-              description: item.description,
-              total_price: item.totalPrice,
-            });
-          })
-        );
-      } catch (orderItemError) {
-        console.error("Order item insertion error:", orderItemError);
-        setError(
-          "Payment was successful, but some items could not be recorded."
-        );
-      }
-      setCheckoutStage("confirmation");
-    }
-
-    if (checkoutStage == "confirmation") {
-      console.log("CONFIRMATION STAGE");
+    } else if (checkoutStage === "payment") {
+      // Process online payment
+      await processStripePayment();
+    } else if (checkoutStage === "confirmation") {
+      // Complete checkout
       dispatch(clearCart());
       setCheckoutStage("cart");
     }
+  };
 
+  const processStripePayment = async () => {
     if (!stripe || !elements) {
       setError("Stripe has not loaded yet. Please try again.");
       return;
@@ -343,14 +312,11 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
 
     try {
       // Step 1: Create Payment Intent
-      const { data } = await axiosInstance.post(
-        "/payment/create-payment-intent",
-        {
-          amount: finalTotal,
-          customerInfo: formData,
-          cartItems: cart,
-        }
-      );
+      const { data } = await axiosInstance.post("/payment/create-payment-intent", {
+        amount: finalTotal,
+        customerInfo: formData,
+        cartItems: cart,
+      });
 
       if (!data.clientSecret) {
         throw new Error("Failed to retrieve client secret from Stripe.");
@@ -378,83 +344,8 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
         throw new Error(result.error.message || "Payment confirmation failed.");
       }
 
-      // Step 3: Check if User Exists in Database
-      let userId = null;
-      let guestId = null;
-
-      try {
-        if (user) {
-          userId = user.user_id;
-        } else {
-          // Create a guest entry if the user doesn't exist
-          const guestResponse = await axiosInstance.post(
-            "/users/create-guest",
-            {
-              name: formData.name,
-              email: formData.email,
-              phone_number: formData.phone,
-              street_address: formData.address.street,
-              city: formData.address.city,
-              county: "",
-              postal_code: formData.address.zipCode,
-            }
-          );
-
-          if (guestResponse.data && guestResponse.data.guest_id) {
-            guestId = guestResponse.data.guest_id;
-          }
-        }
-      } catch (userError) {
-        console.error("Error checking user existence:", userError);
-        setError("User verification failed. Please try again.");
-        return;
-      }
-
-      // Step 4: Insert Order into Database
-      let orderId;
-      try {
-        const orderResponse = await axiosInstance.post("/orders/create", {
-          user_id: userId,
-          guest_id: guestId,
-          transaction_id: result.paymentIntent.id,
-          payment_type: formData.paymentOption,
-          order_type: formData.deliveryOption,
-          total_price: totalPrice,
-          extra_notes: formData.extraNotes || "",
-        });
-
-        if (orderResponse.data && orderResponse.data.order_id) {
-          orderId = orderResponse.data.order_id;
-        } else {
-          throw new Error("Failed to create order.");
-        }
-      } catch (orderError) {
-        console.error("Order creation error:", orderError);
-        setError("Payment was successful, but order creation failed.");
-        return;
-      }
-
-      // Step 5: Insert Order Items into Database
-      try {
-        await Promise.all(
-          cart.map(async (item) => {
-            await axiosInstance.post("/orders/add-item", {
-              order_id: orderId,
-              item_id: item.id,
-              quantity: item.itemQuantity,
-              description: item.description,
-              total_price: item.totalPrice,
-            });
-          })
-        );
-      } catch (orderItemError) {
-        console.error("Order item insertion error:", orderItemError);
-        setError(
-          "Payment was successful, but some items could not be recorded."
-        );
-      }
-      // Step 5: Payment Success, Proceed to Confirmation
-      setCheckoutStage("confirmation");
+      // Step 3: Create order with Stripe transaction ID
+      await processOrderWithFullCreate(result.paymentIntent.id);
     } catch (err) {
       console.error("Payment Error:", err);
       setError(err.message || "Payment failed. Please try again.");
@@ -462,8 +353,80 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
       setProcessing(false);
     }
   };
+
+  const processOrderWithFullCreate = async (stripeTransactionId) => {
+    try {
+      // Generate transaction ID for non-online payments
+      const transactionId = stripeTransactionId || Math.floor(100000000000 + Math.random() * 900000000000).toString();
+
+      // Prepare guest data (only if user is not logged in)
+      const guestData = !user ? {
+        name: formData.name,
+        email: formData.email,
+        phone_number: formData.phone,
+        street_address: formData.address.street,
+        city: formData.address.city,
+        county: "",
+        postal_code: formData.address.zipCode,
+      } : null;
+
+      // Prepare items array matching the API structure
+      const orderItems = cart.map(item => ({
+        item_id: item.id,
+        quantity: item.itemQuantity,
+        description: item.description || "",
+        total_price: item.totalPrice,
+      }));
+
+      // Prepare full order data matching existing API
+      const orderData = {
+        user_id: user?.user_id || null,
+        guest: guestData,
+        transaction_id: transactionId,
+        payment_type: formData.paymentOption,
+        order_type: formData.deliveryOption,
+        total_price: finalTotal,
+        extra_notes: formData.extraNotes || "",
+        status: "yellow",
+        order_source: "Website",
+        change_due: 0,
+        discount: (activeOffer && discountAmount > 0) ? discountAmount : 0,
+        items: orderItems,
+        paid_status: true
+      };
+
+      console.log("Creating order with full-create:", orderData);
+
+      // Call the existing full-create endpoint
+      const orderResponse = await axiosInstance.post("/orders/full-create", orderData);
+
+      if (orderResponse.data && orderResponse.data.order_id) {
+        console.log("Order created successfully:", orderResponse.data.order_id);
+        setCheckoutStage("confirmation");
+      } else {
+        throw new Error("Failed to create order - no order_id returned.");
+      }
+    } catch (error) {
+      console.error("Order creation error:", error);
+
+      // Provide appropriate error message based on payment status
+      let errorMessage = "Order creation failed. Please try again.";
+      if (stripeTransactionId) {
+        errorMessage = "Payment was successful, but order creation failed. Please contact support with transaction ID: " + stripeTransactionId;
+      }
+
+      // Check if it's a specific API error
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+
+      setError(errorMessage);
+    }
+  };
+
+
   const INTERVAL = 3000; // 2 seconds
-  const sides = menuItems?.filter((item) => item.Type === "Sides") || [];
+  const sides = menuItems?.filter((item) => ["Sides", "Drinks"].includes(item.Type)) || [];
   const [index, setIndex] = useState(0);
   const itemRef = useRef(null);
   const [itemWidth, setItemWidth] = useState(0);
@@ -497,150 +460,182 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
           <h3 className="text-sm lg:text-lg font-semibold mb-3">
             Add Side Orders
           </h3>
-          {/* Left Arrow */}
+
           <div
             className="relative overflow-hidden w-full"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
+            {/* Left Arrow - Mobile optimized */}
             <button
               onClick={() =>
                 setIndex((prev) =>
                   prev === 0 ? loopingSides.length - 1 : prev - 1
                 )
               }
-              className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-70 hover:bg-opacity-100 p-1 rounded-full z-10 shadow"
+              className="absolute left-1 lg:left-0 top-1/2 transform -translate-y-1/2 
+                   bg-white bg-opacity-80 hover:bg-opacity-100 
+                   p-2 lg:p-1 rounded-full z-20 shadow-lg
+                   min-w-[32px] min-h-[32px] lg:min-w-auto lg:min-h-auto
+                   flex items-center justify-center
+                   touch-manipulation"
+              aria-label="Previous items"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={16} className="lg:w-5 lg:h-5" />
             </button>
+
             <div className="relative overflow-hidden w-full">
               {/* Carousel */}
               <motion.div
-                className="flex gap-4 px-8" // px-8 to avoid arrow overlap
+                className="flex gap-2 lg:gap-4 px-10 lg:px-8" // More padding on mobile
                 animate={{ x: -index * itemWidth }}
                 transition={{ ease: "easeInOut", duration: 0.5 }}
               >
-                {loopingSides.map((item, i) => (
-                  <div
-                    key={`side-${i}`}
-                    ref={i === 0 ? itemRef : null} // measure only first item
-                    className="relative flex-shrink-0"
-                  >
-                    <div className="flex flex-col items-center">
-                      <div className="relative w-16 h-16 lg:w-24 lg:h-24 rounded-full overflow-hidden group">
-                        <img
-                          src={item.image}
-                          alt={item.title}
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          onClick={() => handleAddSideOrder(item)}
-                          className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
+                {loopingSides.map((item, i) => {
+                  const itemImage = getMenuItemImage(item.title, item.image);
+
+                  return (
+                    <div
+                      key={`side-${i}`}
+                      ref={i === 0 ? itemRef : null}
+                      className="relative flex-shrink-0"
+                    >
+                      <div className="flex flex-col items-center">
+                        <div className="relative w-16 h-16 lg:w-24 lg:h-24 rounded-full overflow-hidden group">
+                          <img
+                            src={itemImage}
+                            alt={item.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            onClick={() => handleAddSideOrder(item)}
+                            className="absolute inset-0 bg-black bg-opacity-40 
+                               flex items-center justify-center 
+                               opacity-0 group-hover:opacity-100 
+                               active:opacity-100 transition-opacity rounded-full
+                               touch-manipulation"
+                            aria-label={`Add ${item.title}`}
+                          >
+                            <Plus className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
+                          </button>
+                        </div>
+                        <p
+                          className="text-xs lg:text-sm mt-1 text-center max-w-[80px] leading-tight"
+                          title={item.title}
                         >
-                          <Plus size={24} className="text-white" />
-                        </button>
+                          {item.title}
+                        </p>
+                        <p className="text-xs font-semibold">
+                          £{item.price.default}
+                        </p>
                       </div>
-                      <p
-                        className="text-xs lg:text-sm mt-1 text-center max-w-[80px]"
-                        title={item.title}
-                      >
-                        {item.title}
-                      </p>
-                      <p className="text-xs font-semibold">
-                        £{item.price.default}
-                      </p>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </motion.div>
             </div>
-            {/* Right Arrow */}
+
+            {/* Right Arrow - Mobile optimized */}
             <button
               onClick={() =>
                 setIndex((prev) => (prev + 1) % loopingSides.length)
               }
-              className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-70 hover:bg-opacity-100 p-1 rounded-full z-10 shadow"
+              className="absolute right-1 lg:right-0 top-1/2 transform -translate-y-1/2 
+                   bg-white bg-opacity-80 hover:bg-opacity-100 
+                   p-2 lg:p-1 rounded-full z-20 shadow-lg
+                   min-w-[32px] min-h-[32px] lg:min-w-auto lg:min-h-auto
+                   flex items-center justify-center
+                   touch-manipulation"
+              aria-label="Next items"
             >
-              <ArrowLeft size={20} style={{ transform: "rotate(180deg)" }} />
+              <ArrowLeft
+                size={16}
+                className="lg:w-5 lg:h-5"
+                style={{ transform: "rotate(180deg)" }}
+              />
             </button>
           </div>
         </motion.div>
       )}
-      {cart.map((item, index) => (
-        <motion.div
-          key={index}
-          custom={index}
-          initial="hidden"
-          animate="visible"
-          variants={itemVariants}
-          className="flex justify-start items-center border-b py-2 lg:py-4"
-        >
-          <div className="grid grid-cols-7">
-            <div className="col-span-1 flex items-center">
-              <img
-                src={`${item.image}`}
-                alt={item.title}
-                className="w-auto h-30 object-cover mr-4 rounded"
-              />
-            </div>
-            <div className="col-span-5 flex justify-start items-center">
-              <div className="grid grid-cols-1 px-4">
-                <h1
-                  className="font-semibold text-xs lg:text-lg text-start"
-                  style={{ fontFamily: "Bambino", fontWeight: 450 }}
-                >
-                  {item.title}
-                </h1>
-                <div className="flex items-center space-x-2 my-1">
-                  <button
-                    onClick={() =>
-                      handleDecreaseQuantity(item.title, item.itemQuantity)
-                    }
-                    className="p-1 rounded-full hover:bg-gray-100"
+      {cart.map((item, index) => {
+        const itemImage = getMenuItemImage(item.title, item.image);
+
+        return (
+          <motion.div
+            key={index}
+            custom={index}
+            initial="hidden"
+            animate="visible"
+            variants={itemVariants}
+            className="flex justify-start items-center border-b py-2 lg:py-4"
+          >
+            <div className="grid grid-cols-7">
+              <div className="col-span-1 flex items-center">
+                <img
+                  src={itemImage}
+                  alt={item.title}
+                  className="w-auto h-30 object-cover mr-4 rounded"
+                />
+              </div>
+              <div className="col-span-5 flex justify-start items-center">
+                <div className="grid grid-cols-1 px-4">
+                  <h1
+                    className="font-semibold text-xs lg:text-lg text-start"
+                    style={{ fontFamily: "Bambino", fontWeight: 450 }}
                   >
-                    <Minus size={16} className="text-gray-600" />
-                  </button>
-                  <span className="text-gray-600 text-sm">
-                    {item.itemQuantity}
-                  </span>
-                  <button
-                    onClick={() => handleIncreaseQuantity(item.title)}
-                    className="p-1 rounded-full hover:bg-gray-100"
-                  >
-                    <Plus size={16} className="text-gray-600" />
-                  </button>
-                  <button
-                    onClick={() => handleRemoveItem(item.title)}
-                    className="p-1 rounded-full hover:bg-gray-100 ml-2"
-                  >
-                    <Trash2 size={16} className="text-red-500" />
-                  </button>
-                </div>
-                <p className="text-gray-600 text-start text-xxxs lg:text-sm">
-                  {item.description.split("\n").map((line, index) => (
-                    <span
-                      key={index}
-                      className={
-                        line.startsWith("Review Note:")
-                          ? "bg-yellow-200 px-1 py-0.5 inline-block rounded"
-                          : ""
+                    {item.title}
+                  </h1>
+                  <div className="flex items-center space-x-2 my-1">
+                    <button
+                      onClick={() =>
+                        handleDecreaseQuantity(item.title, item.itemQuantity)
                       }
+                      className="p-1 rounded-full hover:bg-gray-100"
                     >
-                      {line}
-                      <br />
+                      <Minus size={16} className="text-gray-600" />
+                    </button>
+                    <span className="text-gray-600 text-sm">
+                      {item.itemQuantity}
                     </span>
-                  ))}
+                    <button
+                      onClick={() => handleIncreaseQuantity(item.title)}
+                      className="p-1 rounded-full hover:bg-gray-100"
+                    >
+                      <Plus size={16} className="text-gray-600" />
+                    </button>
+                    <button
+                      onClick={() => handleRemoveItem(item.title)}
+                      className="p-1 rounded-full hover:bg-gray-100 ml-2"
+                    >
+                      <Trash2 size={16} className="text-red-500" />
+                    </button>
+                  </div>
+                  <p className="text-gray-600 text-start text-xxxs lg:text-sm">
+                    {item.description.split("\n").map((line, index) => (
+                      <span
+                        key={index}
+                        className={
+                          line.startsWith("Review Note:")
+                            ? "bg-yellow-200 px-1 py-0.5 inline-block rounded"
+                            : ""
+                        }
+                      >
+                        {line}
+                        <br />
+                      </span>
+                    ))}
+                  </p>
+                </div>
+              </div>
+              <div className="col-span-1 flex items-center">
+                <p className="text-xs lg:text-base font-bold">
+                  £{(Number(item.totalPrice) * item.itemQuantity).toFixed(2)}
                 </p>
               </div>
             </div>
-            <div className="col-span-1 flex items-center">
-              <p className="text-xs lg:text-base font-bold">
-                £{(Number(item.totalPrice) * item.itemQuantity).toFixed(2)}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-      ))}
+          </motion.div>
+        );
+      })}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -649,7 +644,16 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
         className="mt-6 flex justify-between items-center"
       >
         <h3 className="text-xl font-bold">Total order</h3>
-        <p className="text-xl font-bold">£{totalPrice.toFixed(2)}</p>
+        <div className="text-right">
+          <p className={discountAmount > 0 ? "text-lg line-through text-gray-500" : "text-xl font-bold"}>
+            £{totalPrice.toFixed(2)}
+          </p>
+          {discountAmount > 0 && (
+            <p className="text-xl font-bold text-green-600">
+              £{discountedTotal.toFixed(2)}
+            </p>
+          )}
+        </div>
       </motion.div>
     </>
   );
@@ -807,8 +811,8 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
                 <input
                   type="radio"
                   name="paymentOption"
-                  value="cod"
-                  checked={formData.paymentOption === "cod"}
+                  value="Cash on Delivery"
+                  checked={formData.paymentOption === "Cash on Delivery"}
                   onChange={handleChange}
                 />{" "}
                 Cash on Delivery
@@ -817,8 +821,8 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
                 <input
                   type="radio"
                   name="paymentOption"
-                  value="online"
-                  checked={formData.paymentOption === "online"}
+                  value="Card"
+                  checked={formData.paymentOption === "Card"}
                   onChange={handleChange}
                 />{" "}
                 Card Payment
@@ -850,12 +854,39 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
         <h3 className="text-sm lg:text-lg font-semibold mb-2">Order Summary</h3>
         <div className="flex justify-between text-sm lg:text-base mb-1">
           <span>Subtotal</span>
-          <span>£{totalPrice.toFixed(2)}</span>
+          <span className={discountAmount > 0 ? "line-through text-gray-500" : ""}>
+            £{totalPrice.toFixed(2)}
+          </span>
         </div>
+        {activeOffer && discountAmount > 0 && (
+          <div className="flex justify-between text-sm lg:text-base mb-1 text-red-600">
+            <span>{activeOffer.offer_text}</span>
+            <span>-£{discountAmount.toFixed(2)}</span>
+          </div>
+        )}
+
+        {discountAmount > 0 && (
+          <div className="flex justify-between text-sm lg:text-base mb-1 text-green-600">
+            <span>Discounted Subtotal</span>
+            <span>£{discountedTotal.toFixed(2)}</span>
+          </div>
+        )}
+
+
+
         {formData.deliveryOption === "delivery" && (
           <div className="flex justify-between text-sm lg:text-base mb-1">
             <span>Delivery Fee</span>
-            <span>£1.50</span>
+            <span className={finalDeliveryFee === 0 && deliveryFee > 0 ? "line-through text-gray-500" : ""}>
+              £{deliveryFee.toFixed(2)}
+            </span>
+          </div>
+        )}
+
+        {finalDeliveryFee === 0 && deliveryFee > 0 && (
+          <div className="flex justify-between text-sm lg:text-base mb-1 text-green-600">
+            <span>Delivery Fee (Free)</span>
+            <span>£0.00</span>
           </div>
         )}
         <div className="flex justify-between font-bold text-sm lg:text-base">
@@ -1017,8 +1048,8 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
                           (e.currentTarget.style.backgroundColor = "#8a1613")
                         }
                         onMouseLeave={(e) =>
-                          (e.currentTarget.style.backgroundColor =
-                            colors.primaryRed)
+                        (e.currentTarget.style.backgroundColor =
+                          colors.primaryRed)
                         }
                       >
                         Proceed to Checkout

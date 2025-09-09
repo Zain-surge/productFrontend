@@ -16,6 +16,7 @@ import Sides from "../images/CLIPARTS/Sides.png";
 import Drinks from "../images/CLIPARTS/Drinks.png";
 import Milkshake from "../images/CLIPARTS/Milkshake.png";
 import Dips from "../images/CLIPARTS/Dips.png";
+import Deals from "../images/CLIPARTS/Deals.png";
 import CartModal from "./CartModal";
 import Cart from "./Cart";
 import AuthModal from "./AuthModal";
@@ -37,7 +38,10 @@ const stripePromise = loadStripe(
   "pk_test_51Qjkvz09BvMasiZC1YmgMdc7JBgVwxMbD1wG1Mu1i4ec3j51DaVw9ypm4HNCM6ox08X51MHCypKJcENwIALs0qzl00oeH8G11i"
 );
 
-function Menu({ menuItems }) {
+function Menu() {
+  const menuItems = useSelector((state) => state.menuItems.items);
+  const menuItemsLoading = useSelector((state) => state.menuItems.loading);
+  const menuItemsError = useSelector((state) => state.menuItems.error);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState("Pizza");
   const [selectedSubItem, setSelectedSubItem] = useState("Pizza");
@@ -147,6 +151,7 @@ function Menu({ menuItems }) {
     "Calzones",
     "GarlicBread",
     "Wraps",
+    "Deals",
     "KidsMeal",
     "Sides",
     "Milkshake",
@@ -173,12 +178,16 @@ function Menu({ menuItems }) {
     Calzones,
     GarlicBread,
     Wraps,
+    Deals,
     KidsMeal,
     Sides,
     Milkshake,
     Drinks,
     Dips,
   };
+  useEffect(() => {
+  console.log("Menu items updated:", menuItems);
+}, [menuItems]);
 
   const handleClick = (item) => {
     console.log(offers);
@@ -220,6 +229,21 @@ function Menu({ menuItems }) {
   const handleCloseCartModal = () => {
     setCartModalItem(null);
   };
+  if (menuItemsLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        Loading menu...
+      </div>
+    );
+  }
+
+  if (menuItemsError) {
+    return (
+      <div className="flex justify-center items-center h-screen text-red-500">
+        Error loading menu: {menuItemsError}
+      </div>
+    );
+  }
 
   const renderOffers = () => {
     return (
@@ -323,8 +347,8 @@ function Menu({ menuItems }) {
                         backgroundColor: isSelected
                           ? colors.primaryGreen
                           : hovered
-                          ? "#d1d5db"
-                          : "#e5e7eb",
+                            ? "#d1d5db"
+                            : "#e5e7eb",
                         color: isSelected ? "#ffffff" : "#374151",
                         borderRadius: "12px",
                         fontFamily: "Bambino",
@@ -359,8 +383,8 @@ function Menu({ menuItems }) {
                         backgroundColor: isSelected
                           ? colors.primaryGreen
                           : hovered
-                          ? "#d1d5db"
-                          : "#e5e7eb",
+                            ? "#d1d5db"
+                            : "#e5e7eb",
                         color: isSelected ? "#ffffff" : "#374151",
                         borderRadius: "12px",
                         fontFamily: "Bambino",
@@ -388,8 +412,8 @@ function Menu({ menuItems }) {
                 (item) =>
                   item.Type === selectedItem &&
                   (item.subType === selectedSubItem ||
-                    item.subType === null) && (
-                    <div key={item.id} className="col-span-1">
+                    item.subType === null) && item.availability === true && item.website===true && (
+                    <div key={`${item.id}-${item.availability}`} className="col-span-1">
                       <ItemCard
                         menuItems={item}
                         onAddToCart={() => handleOpenCartModal(item)}

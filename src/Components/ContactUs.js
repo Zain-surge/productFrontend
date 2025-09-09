@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope } from "react-icons/fa";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import customFetch from "../customFetch";
+import axiosInstance from "../axiosInstance";
 import { colors } from "../colors";
 
 const ContactUs = () => {
@@ -31,18 +31,9 @@ const ContactUs = () => {
     };
 
     try {
-      const response = await customFetch(
-        "https://thevillage-backend.onrender.com/contact",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      const { data } = await axiosInstance.post("/contact", payload);
 
-      if (response.ok) {
+      if (data) {
         toast.success("🎉 Message sent successfully!", {
           position: "top-center",
           autoClose: 3000,

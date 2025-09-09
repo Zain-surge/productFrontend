@@ -1,5 +1,5 @@
 import { useState } from "react";
-import customFetch from "../customFetch";
+import axiosInstance from "../axiosInstance";
 import { colors } from "../colors";
 
 function AdminLogin({ setIsAdmin }) {
@@ -10,30 +10,26 @@ function AdminLogin({ setIsAdmin }) {
   const [error, setError] = useState("");
 
   const handleLogin = async (e) => {
-    console.log("TRYINGGGGGGGGGGGGGGGGGGGGGGG");
     e.preventDefault();
     try {
-      const response = await customFetch(
-        "https://thevillage-backend.onrender.com/auth/admin-login",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(credentials),
-        }
+      const response = await axiosInstance.post(
+        "/auth/admin-login",
+        credentials,
+        { withCredentials: true }
       );
 
-      const data = await response.json();
-      if (response.ok) {
+      // Check if login was actually successful
+      if (response.data.success) {
         setIsAdmin(true);
       } else {
-        setError(data.message);
+        setError(response.data.message || "Login failed.");
       }
     } catch (err) {
       console.error("Login failed:", err);
-      setError("Something went wrong.");
+      setError(err.response?.data?.message || "Something went wrong.");
     }
   };
+
 
   return (
     <div className="flex h-screen items-center justify-center bg-white text-white">

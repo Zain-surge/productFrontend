@@ -130,6 +130,17 @@ function NavBar() {
               MENU
             </Link>
             <Link
+              to="/track"
+              className="nav-link py-1 px-4 text-sm"
+              style={
+                isActive("/track")
+                  ? NavBarTextStyleHoverDesktop
+                  : NavBarTextStyleDesktop
+              }
+            >
+              TRACK ORDER
+            </Link>
+            <Link
               to="/contact"
               className="nav-link py-1 px-4 text-sm"
               style={
@@ -196,114 +207,8 @@ function NavBar() {
       {/* Mobile Navigation - Bottom */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg">
         <div className="flex items-center justify-between h-16 px-4">
-          {/* Left Section - Menu and Contact */}
+          {/* Left Section - Menu and Track */}
           <div className="flex items-center space-x-6">
-            <Link to="/" className="flex flex-col items-center justify-center">
-              <div
-                className={`w-6 h-6 flex items-center justify-center mb-1`}
-                style={{ color: isActive("/") ? colors.primary : "#4B5563" }}
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
-                </svg>
-              </div>
-              <span
-                className={`text-xs `}
-                style={{
-                  ...NavBarTextStyle,
-                  color: isActive("/") ? colors.primary : "#4B5563", // gray-600 fallback
-                }}
-              >
-                MENU
-              </span>
-            </Link>
-
-            <Link
-              to="/contact"
-              className="flex flex-col items-center justify-center"
-            >
-              <div
-                className={`w-6 h-6 flex items-center justify-center mb-1 `}
-                style={{
-                  color: isActive("/contact") ? colors.primary : "#4B5563", // gray-600 fallback
-                }}
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
-                </svg>
-              </div>
-              <span
-                className={`text-xs `}
-                style={{
-                  ...NavBarTextStyle,
-                  color: isActive("/contact") ? colors.primary : "#4B5563", // gray-600 fallback
-                }}
-              >
-                CONTACT
-              </span>
-            </Link>
-          </div>
-
-          {/* Center Section - Logo */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-6">
-            <Link to="/" className="flex items-center justify-center">
-              <div className="relative">
-                {/* Green Circle Background */}
-                <div
-                  className="absolute inset-0 w-16 h-16  rounded-full flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2 shadow-lg"
-                  style={{ backgroundColor: colors.primaryGreen }}
-                ></div>
-                {/* Logo */}
-                <img
-                  className="relative h-10 w-auto z-10"
-                  src={logo}
-                  alt="Logo"
-                />
-              </div>
-            </Link>
-          </div>
-
-          {/* Right Section - Cart and Login */}
-          <div className="flex items-center space-x-6">
-            <div className="relative">
-              <button
-                onClick={() => setIsCartOpen(true)}
-                className="flex flex-col items-center justify-center"
-              >
-                <div className="relative w-6 h-6 flex items-center justify-center mb-1 text-gray-600">
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                  >
-                    <path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
-                  </svg>
-                  {totalItems > 0 && (
-                    <span
-                      className="absolute -top-2 -right-2  text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
-                      style={{ backgroundColor: colors.primaryRed }}
-                    >
-                      {totalItems}
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs text-gray-600" style={NavBarTextStyle}>
-                  CART
-                </span>
-              </button>
-            </div>
-
             <div className="relative">
               <button
                 onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
@@ -325,7 +230,7 @@ function NavBar() {
               </button>
 
               {isUserDropdownOpen && (
-                <div className="absolute right-0 bottom-full mb-2 w-48 bg-white border border-gray-200 shadow-lg rounded-lg ">
+                <div className="absolute right-30 bottom-full mb-2 w-36 bg-white border border-gray-200 shadow-lg rounded-lg ">
                   {user ? (
                     <>
                       <div className="px-4 py-2 text-sm text-gray-700 border-b">
@@ -365,6 +270,120 @@ function NavBar() {
                 </div>
               )}
             </div>
+
+            <Link
+              to="/track"
+              className="flex flex-col items-center justify-center"
+            >
+              <div
+                className={`w-6 h-6 flex items-center justify-center mb-1 `}
+                style={{
+                  color: isActive("/track") ? colors.primary : "#4B5563",
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                </svg>
+              </div>
+              <span
+                className={`text-xs `}
+                style={{
+                  ...NavBarTextStyle,
+                  color: isActive("/track") ? colors.primary : "#4B5563",
+                }}
+              >
+                TRACK
+              </span>
+            </Link>
+          </div>
+
+          {/* Center Section - Logo */}
+          <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-6">
+            <Link to="/" className="flex items-center justify-center">
+              <div className="relative">
+                {/* Green Circle Background */}
+                <div
+                  className="absolute inset-0 w-16 h-16  rounded-full flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2 shadow-lg"
+                  style={{ backgroundColor: colors.primaryGreen }}
+                ></div>
+                {/* Logo */}
+                <img
+                  className="relative h-10 w-auto z-10"
+                  src={logo}
+                  alt="Logo"
+                />
+              </div>
+            </Link>
+          </div>
+
+          {/* Right Section - Contact, Cart and Login */}
+          <div className="flex items-center space-x-6">
+            <div className="relative">
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="flex flex-col items-center justify-center"
+              >
+                <div className="relative w-6 h-6 flex items-center justify-center mb-1 text-gray-600">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13h7.45c.75 0 1.41-.41 1.75-1.03L21.7 4H5.21l-.94-2H1zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                  </svg>
+                  {totalItems > 0 && (
+                    <span
+                      className="absolute -top-2 -right-2  text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                      style={{ backgroundColor: colors.primaryRed }}
+                    >
+                      {totalItems}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-gray-600" style={NavBarTextStyle}>
+                  CART
+                </span>
+              </button>
+            </div>
+            <Link
+              to="/contact"
+              className="flex flex-col items-center justify-center"
+            >
+              <div
+                className={`w-6 h-6 flex items-center justify-center mb-1 `}
+                style={{
+                  color: isActive("/contact") ? colors.primary : "#4B5563",
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+                </svg>
+              </div>
+              <span
+                className={`text-xs `}
+                style={{
+                  ...NavBarTextStyle,
+                  color: isActive("/contact") ? colors.primary : "#4B5563",
+                }}
+              >
+                CONTACT
+              </span>
+            </Link>
+
+            
+
+            
           </div>
         </div>
       </nav>
@@ -374,4 +393,4 @@ function NavBar() {
   );
 }
 
-export default NavBar;
+export default NavBar; 

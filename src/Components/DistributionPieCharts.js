@@ -97,34 +97,28 @@ const DistributionPieCharts = ({ data, title, colors, className = "" }) => {
   return (
     <div className={`flex flex-col items-center ${className}`}>
       <h3
-        className="text-lg font-semibold mb-4 text-gray-700"
+        className="text-xs md:text-lg font-semibold mb-4 text-gray-700"
         style={{ fontFamily: "Bambino" }}
       >
         {title}
       </h3>
-      <div className="w-80 h-80">
+      <div className="w-full max-w-[180px] sm:max-w-[220px] aspect-square">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={dataWithTotal}
               cx="50%"
               cy="50%"
-              labelLine={false}
-              outerRadius={100}
-              innerRadius={60}
-              fill="#8884d8"
+              outerRadius="80%"
+              innerRadius="55%"
               dataKey="value"
               paddingAngle={3}
-              startAngle={90}
-              endAngle={450}
             >
               {dataWithTotal.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
                   fill={chartColors[index % chartColors.length]}
                   stroke="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
                 />
               ))}
             </Pie>
@@ -139,7 +133,6 @@ const DistributionPieCharts = ({ data, title, colors, className = "" }) => {
                     fontSize: "12px",
                     fontWeight: "500",
                     color: "black",
-
                     fontFamily: "Bambino",
                   }}
                 >
@@ -151,6 +144,7 @@ const DistributionPieCharts = ({ data, title, colors, className = "" }) => {
         </ResponsiveContainer>
       </div>
     </div>
+
   );
 };
 

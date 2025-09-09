@@ -3,6 +3,7 @@ import logo from "../images/tvpLogo.png";
 import { useState } from "react";
 import { colors } from "../colors";
 import card from "../images/cards.png";
+import Halal from "../images/Halal.png";
 
 const Footer = () => {
   const location = useLocation();
@@ -159,13 +160,13 @@ const Footer = () => {
             style={
               isActive("/")
                 ? {
-                    fontFamily: "Bambino",
-                    fontWeight: 750,
-                    textDecoration: "underline",
-                    textDecorationColor: colors.primaryGreen,
-                    textDecorationThickness: "3px",
-                    textUnderlineOffset: "5px",
-                  }
+                  fontFamily: "Bambino",
+                  fontWeight: 750,
+                  textDecoration: "underline",
+                  textDecorationColor: colors.primaryGreen,
+                  textDecorationThickness: "3px",
+                  textUnderlineOffset: "5px",
+                }
                 : { fontFamily: "Bambino", fontWeight: 750 }
             }
           >
@@ -178,13 +179,13 @@ const Footer = () => {
             style={
               isActive("/contact")
                 ? {
-                    fontFamily: "Bambino",
-                    fontWeight: 750,
-                    textDecoration: "underline",
-                    textDecorationColor: colors.primaryGreen,
-                    textDecorationThickness: "3px",
-                    textUnderlineOffset: "5px",
-                  }
+                  fontFamily: "Bambino",
+                  fontWeight: 750,
+                  textDecoration: "underline",
+                  textDecorationColor: colors.primaryGreen,
+                  textDecorationThickness: "3px",
+                  textUnderlineOffset: "5px",
+                }
                 : { fontFamily: "Bambino", fontWeight: 750 }
             }
           >
@@ -274,7 +275,10 @@ const Footer = () => {
           >
             Terms & Conditions
           </button>
-          <img className="pl-2 mt-2 h-5 w-auto" src={card} alt="card" />
+          <div className="flex items-center">
+            <img className="pl-2 mt-2 h-5 w-auto" src={card} alt="card" />
+            <img className="pl-2 mt-2 h-5 w-auto" src={Halal} alt="Halal" />
+          </div>
         </div>
       </div>
     </footer>

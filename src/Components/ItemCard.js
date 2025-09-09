@@ -1,6 +1,5 @@
-import React from "react";
-import background from "../images/Pizza1.jpeg";
 import { colors } from "../colors";
+import { getMenuItemImage } from "./menuItemImageMapping"; // Import your mapping function
 
 function ItemCard(props) {
   const TitleTextStyle = {
@@ -26,14 +25,18 @@ function ItemCard(props) {
     backgroundColor: colors.primaryRed,
   };
 
-  // Extract the first price if it's an object
   let startingPrice;
+
   if (typeof props.menuItems.price === "object") {
-    const firstKey = Object.keys(props.menuItems.price)[0]; // Get first key
-    startingPrice = props.menuItems.price[firstKey]; // Get first price value
+    const values = Object.values(props.menuItems.price); // extract all prices
+    startingPrice = Math.min(...values); // find the lowest one
   } else {
-    startingPrice = props.menuItems.price; // If it's a single value, use it directly
+    startingPrice = props.menuItems.price;
   }
+
+
+  // Get the specific image for this menu item using your mapping
+  const itemImage = getMenuItemImage(props.menuItems.title, props.menuItems.image);
 
   return (
     <div>
@@ -44,8 +47,8 @@ function ItemCard(props) {
         <div className="relative w-full h-0" style={{ paddingBottom: "35%" }}>
           <img
             className="absolute top-[-50%] left-1/2 transform -translate-x-1/2 w-[50%] rounded-lg shadow-lg"
-            src={props.menuItems.image}
-            alt="Sunset in the mountains"
+            src={itemImage} // Now shows the specific image for each item
+            alt={props.menuItems.title}
           />
         </div>
         <div className="px-2 lg:px-6 pb-4  ">
@@ -71,7 +74,7 @@ function ItemCard(props) {
             className="text-sm lg:text-lg px-4 h-[20px] lg:h-[40px] flex justify-center"
             style={PriceTextStyle}
           >
-            £{startingPrice}
+            £{Number(startingPrice).toFixed(2)}
           </p>
           <div className="flex justify-center">
             <button
