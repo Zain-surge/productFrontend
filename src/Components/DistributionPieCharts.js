@@ -13,9 +13,7 @@ const DistributionPieCharts = ({ data, title, colors, className = "" }) => {
   // Default colors if none provided
   const defaultColors = [
     "#FF6B6B",
-    "#4ECDC4",
     "#45B7D1",
-    "#96CEB4",
     "#FECA57",
     "#6C5CE7",
     "#A29BFE",
@@ -24,30 +22,46 @@ const DistributionPieCharts = ({ data, title, colors, className = "" }) => {
   const chartColors = colors || defaultColors;
 
   // Transform API data for recharts format
-  const transformDataForPieChart = (
-    dataArray,
-    labelKey,
-    valueKey = "count"
-  ) => {
+  // Transform API data for recharts format
+  const transformDataForPieChart = (dataArray, labelKey, valueKey = "count") => {
     if (!dataArray || !Array.isArray(dataArray)) return [];
 
-    return dataArray.map((item) => ({
-      name: item[labelKey] || "Unknown",
-      value: parseInt(item[valueKey]) || 0,
-      total: item.total || "0",
-      count: item.count || 0,
-    }));
+    // Step 1: Normalize and group by lowercased name
+    const grouped = dataArray.reduce((acc, item) => {
+      let key = (item[labelKey] || "UNPAID").trim();
+      if (!key) key = "UNPAID"; // Handle empty string as "Unknown"
+
+      const normalizedKey = key.toLowerCase(); // Normalize casing
+
+      if (!acc[normalizedKey]) {
+        acc[normalizedKey] = {
+          name: key.charAt(0).toUpperCase() + key.slice(1), // Format display name
+          value: 0,
+          total: 0,
+          count: 0,
+        };
+      }
+
+      acc[normalizedKey].value += parseFloat(item[valueKey]) || 0;
+      acc[normalizedKey].count += parseInt(item.count) || 0;
+      acc[normalizedKey].total += parseFloat(item.total) || 0;
+
+      return acc;
+    }, {});
+
+    // Step 2: Convert grouped object back to an array
+    return Object.values(grouped);
   };
+
 
   // Determine the label key based on data structure
   const getLabelKey = (dataArray) => {
     if (!dataArray || !Array.isArray(dataArray) || dataArray.length === 0)
       return "name";
-
-    const firstItem = dataArray[0];
-    if (firstItem.payment_type) return "payment_type";
-    if (firstItem.order_type) return "order_type";
-    if (firstItem.source) return "source";
+    const firstItem = dataArray[0].payment_type != "" ? dataArray[0] : dataArray[1];
+    if (firstItem?.payment_type) return "payment_type";
+    if (firstItem?.order_type) return "order_type";
+    if (firstItem?.source) return "source";
     return "name";
   };
 
@@ -102,7 +116,7 @@ const DistributionPieCharts = ({ data, title, colors, className = "" }) => {
       >
         {title}
       </h3>
-      <div className="w-full max-w-[180px] sm:max-w-[220px] aspect-square">
+      <div className="w-full max-w-[180px] sm:max-w-[220px] min-h-[220px] sm:min-h-[250px] aspect-square">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -125,12 +139,12 @@ const DistributionPieCharts = ({ data, title, colors, className = "" }) => {
             <Tooltip content={<CustomTooltip />} />
             <Legend
               verticalAlign="bottom"
-              height={36}
+              height={60}
               iconType="circle"
               formatter={(value) => (
                 <span
                   style={{
-                    fontSize: "12px",
+                    fontSize: "11px",
                     fontWeight: "500",
                     color: "black",
                     fontFamily: "Bambino",

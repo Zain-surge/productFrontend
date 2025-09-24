@@ -47,7 +47,8 @@ const itemVariants = {
   }),
 };
 
-const Cart = ({ isOpen, onClose, menuItems }) => {
+const Cart = ({ isOpen, onClose }) => {
+  const menuItems = useSelector((state) => state.menuItems.items);
   const location = useLocation();
   const shouldRenderCart = location.pathname === "/";
   const [checkoutStage, setCheckoutStage] = useState("cart");
@@ -81,58 +82,57 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
   const [filteredPostalCodes, setFilteredPostalCodes] = useState([]);
   const [search, setSearch] = useState("");
   const [formError, setFormError] = useState("");
+  const [isOrderSubmitting, setIsOrderSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const [streets, setStreets] = useState([]);
+  const [filteredStreets, setFilteredStreets] = useState([]);
+  const [isStreetDropdownOpen, setIsStreetDropdownOpen] = useState(false);
 
   useEffect(() => {
-    const fetchNearbyPlaces = async (lat, lon, radius = 5000) => {
-      const overpassQuery = `
-        [out:json];
-        (
-          node(around:${radius}, ${lat}, ${lon})["addr:postcode"];
-          way(around:${radius}, ${lat}, ${lon})["addr:postcode"];
-          relation(around:${radius}, ${lat}, ${lon})["addr:postcode"];
-        );
-        out center;`;
-
-      const url = "https://overpass-api.de/api/interpreter";
-
+    const fetchNearbyPostcodes = async () => {
       try {
-        const response = await axios.post(
-          url,
-          `data=${encodeURIComponent(overpassQuery)}`
-        );
-        console.log("PLACES DATS: ", response.data);
-        // Group results by postal code
-        const groupedPlaces = response.data.elements.reduce((acc, place) => {
-          const postalCode = place.tags?.["addr:postcode"] || "Unknown";
-          const placeData = {
-            id: place.id,
-            name: place.tags?.["name"] || "Unknown",
-            lat: place.lat || place.center?.lat,
-            lon: place.lon || place.center?.lon,
-          };
+        // Call your backend API to get postcodes
+        const response = await axiosInstance.get("/admin/postcodes");
 
-          if (!acc[postalCode]) {
-            acc[postalCode] = [];
-          }
-          acc[postalCode].push(placeData);
-
+        // Extract postcodes and create places object with streets
+        const codes = response.data?.rows?.map((row) => row.postcode) || [];
+        const placesWithStreets = response.data?.rows?.reduce((acc, row) => {
+          acc[row.postcode] = row.streets || [];
           return acc;
-        }, {});
+        }, {}) || {};
 
-        setPlaces(groupedPlaces);
-
-        const codes = Object.keys(groupedPlaces).filter(
-          (code) => code !== "Unknown"
-        );
         setPostalCodes(codes);
         setFilteredPostalCodes(codes);
+        setPlaces(placesWithStreets);
       } catch (error) {
-        console.error("Error fetching places:", error.message);
+        console.error("Error fetching postcodes:", error.message);
       }
     };
 
-    fetchNearbyPlaces(53.752574, -2.3620782, 5000);
+    fetchNearbyPostcodes();
   }, []);
+
+  useEffect(() => {
+    if (formData.address.zipCode && places[formData.address.zipCode]) {
+      const availableStreets = places[formData.address.zipCode] || [];
+      setStreets(availableStreets);
+      setFilteredStreets(availableStreets);
+    } else {
+      setStreets([]);
+      setFilteredStreets([]);
+    }
+    // Clear street address when postcode changes
+    if (formData.address.street && !streets.includes(formData.address.street)) {
+      setFormData(prev => ({
+        ...prev,
+        address: {
+          ...prev.address,
+          street: ""
+        }
+      }));
+    }
+  }, [formData.address.zipCode, places]);
+
 
   useEffect(() => {
     const normalizedSearch = search.replace(/\s/g, "").toLowerCase();
@@ -239,7 +239,7 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
       setFormData((prev) => ({
         ...prev,
         deliveryOption: "pickup",
-        paymentOption: "Cash on Delivery", // Force to COD when pickup
+        paymentOption: "Cash on Pickup", // Force to COD when pickup
         address: {
           street: "",
           city: "",
@@ -268,20 +268,24 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
     setError(null);
     setFormError("");
 
+    if (isSubmittingRef.current) return;
+
     // Validation
     if (checkoutStage === "customer-info" && formData.deliveryOption === "delivery" && totalPrice < 8.5) {
       setFormError("Cannot place a delivery order less than £8.50.");
       return;
     }
+    const normalizedPostalCodes = postalCodes.map(code => code.replace(/\s/g, "").toLowerCase());
+    const normalizedInput = formData.address.zipCode.replace(/\s/g, "").toLowerCase();
 
-    // if (
-    //   checkoutStage === "customer-info" &&
-    //   formData.deliveryOption === "delivery" &&
-    //   !normalizedPostalCodes.includes(normalizedInput)
-    // ) {
-    //   setFormError("Invalid postal code. Please select from the dropdown.");
-    //   return;
-    // }
+    if (
+      checkoutStage === "customer-info" &&
+      formData.deliveryOption === "delivery" &&
+      !normalizedPostalCodes.includes(normalizedInput)
+    ) {
+      setFormError("Invalid postal code. Please select from the dropdown.");
+      return;
+    }
 
     // Handle different checkout stages
     if (checkoutStage === "customer-info") {
@@ -290,7 +294,12 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
         return;
       } else {
         // Process non-online payment order
-        await processOrderWithFullCreate(null);
+        isSubmittingRef.current = true;
+        try {
+          await processOrderWithFullCreate(null);
+        } finally {
+
+        }
       }
     } else if (checkoutStage === "payment") {
       // Process online payment
@@ -392,16 +401,15 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
         change_due: 0,
         discount: (activeOffer && discountAmount > 0) ? discountAmount : 0,
         items: orderItems,
-        paid_status: true
+        paid_status: (formData.paymentOption === "Cash on Delivery" || formData.paymentOption === "Cash on PickUp") ? false : true,
       };
 
-      console.log("Creating order with full-create:", orderData);
 
       // Call the existing full-create endpoint
       const orderResponse = await axiosInstance.post("/orders/full-create", orderData);
 
       if (orderResponse.data && orderResponse.data.order_id) {
-        console.log("Order created successfully:", orderResponse.data.order_id);
+        isSubmittingRef.current = false;
         setCheckoutStage("confirmation");
       } else {
         throw new Error("Failed to create order - no order_id returned.");
@@ -455,7 +463,7 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-6 mb-4"
+          className="mt-6 mb-4" // Removed 'hidden lg:block'
         >
           <h3 className="text-sm lg:text-lg font-semibold mb-3">
             Add Side Orders
@@ -470,15 +478,15 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
             <button
               onClick={() =>
                 setIndex((prev) =>
-                  prev === 0 ? loopingSides.length - 1 : prev - 1
+                  prev === 0 ? sides.length - 1 : prev - 1
                 )
               }
               className="absolute left-1 lg:left-0 top-1/2 transform -translate-y-1/2 
-                   bg-white bg-opacity-80 hover:bg-opacity-100 
-                   p-2 lg:p-1 rounded-full z-20 shadow-lg
-                   min-w-[32px] min-h-[32px] lg:min-w-auto lg:min-h-auto
-                   flex items-center justify-center
-                   touch-manipulation"
+              bg-white bg-opacity-80 hover:bg-opacity-100 
+              p-2 lg:p-1 rounded-full z-20 shadow-lg
+              min-w-[32px] min-h-[32px] lg:min-w-auto lg:min-h-auto
+              flex items-center justify-center
+              touch-manipulation"
               aria-label="Previous items"
             >
               <ArrowLeft size={16} className="lg:w-5 lg:h-5" />
@@ -486,19 +494,15 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
 
             <div className="relative overflow-hidden w-full">
               {/* Carousel */}
-              <motion.div
-                className="flex gap-2 lg:gap-4 px-10 lg:px-8" // More padding on mobile
-                animate={{ x: -index * itemWidth }}
-                transition={{ ease: "easeInOut", duration: 0.5 }}
-              >
-                {loopingSides.map((item, i) => {
+              <div className="flex gap-2 lg:gap-4 px-10 lg:px-8 transition-transform duration-500 ease-in-out"
+                style={{ transform: `translateX(-${index * (window.innerWidth < 1024 ? 88 : 120)}px)` }}>
+                {sides.concat(sides).map((item, i) => {
                   const itemImage = getMenuItemImage(item.title, item.image);
 
                   return (
                     <div
                       key={`side-${i}`}
-                      ref={i === 0 ? itemRef : null}
-                      className="relative flex-shrink-0"
+                      className="relative flex-shrink-0 w-16 lg:w-24"
                     >
                       <div className="flex flex-col items-center">
                         <div className="relative w-16 h-16 lg:w-24 lg:h-24 rounded-full overflow-hidden group">
@@ -510,17 +514,17 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
                           <button
                             onClick={() => handleAddSideOrder(item)}
                             className="absolute inset-0 bg-black bg-opacity-40 
-                               flex items-center justify-center 
-                               opacity-0 group-hover:opacity-100 
-                               active:opacity-100 transition-opacity rounded-full
-                               touch-manipulation"
+                          flex items-center justify-center 
+                          opacity-0 group-hover:opacity-100 
+                          group-active:opacity-100 transition-opacity rounded-full
+                          touch-manipulation"
                             aria-label={`Add ${item.title}`}
                           >
                             <Plus className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
                           </button>
                         </div>
                         <p
-                          className="text-xs lg:text-sm mt-1 text-center max-w-[80px] leading-tight"
+                          className="text-xs lg:text-sm mt-1 text-center w-16 lg:w-24 leading-tight truncate"
                           title={item.title}
                         >
                           {item.title}
@@ -532,20 +536,20 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
                     </div>
                   );
                 })}
-              </motion.div>
+              </div>
             </div>
 
             {/* Right Arrow - Mobile optimized */}
             <button
               onClick={() =>
-                setIndex((prev) => (prev + 1) % loopingSides.length)
+                setIndex((prev) => (prev + 1) % sides.length)
               }
               className="absolute right-1 lg:right-0 top-1/2 transform -translate-y-1/2 
-                   bg-white bg-opacity-80 hover:bg-opacity-100 
-                   p-2 lg:p-1 rounded-full z-20 shadow-lg
-                   min-w-[32px] min-h-[32px] lg:min-w-auto lg:min-h-auto
-                   flex items-center justify-center
-                   touch-manipulation"
+              bg-white bg-opacity-80 hover:bg-opacity-100 
+              p-2 lg:p-1 rounded-full z-20 shadow-lg
+              min-w-[32px] min-h-[32px] lg:min-w-auto lg:min-h-auto
+              flex items-center justify-center
+              touch-manipulation"
               aria-label="Next items"
             >
               <ArrowLeft
@@ -734,17 +738,51 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
 
       {formData.deliveryOption === "delivery" && (
         <div>
-          <label className="block mb-1 lg:mb-2 text-xs lg:text-sm text-start">
-            Street Address
-          </label>
-          <input
-            type="text"
-            name="address.street"
-            value={formData.address.street}
-            onChange={handleChange}
-            required
-            className="w-full p-0 lg:p-2 border rounded text-sm lg:text-sm"
-          />
+          <div>
+            <label className="block mb-1 lg:mb-2 text-xs lg:text-sm text-start">
+              Street Address
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                name="address.street"
+                value={formData.address.street}
+                onChange={(e) => {
+                  handleChange(e);
+                  setFilteredStreets(
+                    streets.filter(street =>
+                      street.toLowerCase().includes(e.target.value.toLowerCase())
+                    )
+                  );
+                  setIsStreetDropdownOpen(true);
+                }}
+                onFocus={() => setIsStreetDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setIsStreetDropdownOpen(false), 200)}
+                required
+                disabled={!formData.address.zipCode}
+                className="w-full p-0 lg:p-2 border rounded text-sm lg:text-sm disabled:bg-gray-100"
+                placeholder={formData.address.zipCode ? "Select or type street address..." : "Please select a postcode first"}
+              />
+              {isStreetDropdownOpen && filteredStreets.length > 0 && formData.address.zipCode && (
+                <ul className="absolute w-full border rounded mt-1 bg-white max-h-40 overflow-y-auto shadow-md z-10">
+                  {filteredStreets.map((street) => (
+                    <li
+                      key={street}
+                      className="p-2 cursor-pointer hover:bg-gray-100 text-sm"
+                      onMouseDown={() => {
+                        handleChange({
+                          target: { name: "address.street", value: street },
+                        });
+                        setIsStreetDropdownOpen(false);
+                      }}
+                    >
+                      {street}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
             <div>
@@ -807,7 +845,7 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
               Payment Option
             </label>
             <div className="flex space-x-4 text-xs lg:text-sm">
-              <label>
+              {formData.deliveryOption === "delivery" && (<label>
                 <input
                   type="radio"
                   name="paymentOption"
@@ -816,7 +854,18 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
                   onChange={handleChange}
                 />{" "}
                 Cash on Delivery
-              </label>
+              </label>)}
+              {formData.deliveryOption === "pickup" && (<label>
+                <input
+                  type="radio"
+                  name="paymentOption"
+                  value="Cash on PickUp"
+                  checked={formData.paymentOption === "Cash on PickUp"}
+                  onChange={handleChange}
+                />{" "}
+                Cash on PickUp
+              </label>)}
+
               <label>
                 <input
                   type="radio"
@@ -1068,7 +1117,7 @@ const Cart = ({ isOpen, onClose, menuItems }) => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   type="submit"
-                  disabled={processing && checkoutStage === "payment"}
+                  disabled={(processing && checkoutStage === "payment") || isSubmittingRef.current}
                   className="w-full  text-white text-sm lg:text-base py-1 lg:py-3 mt-6 rounded-lg  transition"
                   style={{ backgroundColor: colors.primaryRed }}
                   onMouseEnter={(e) =>

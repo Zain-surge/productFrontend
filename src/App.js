@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { colors } from "./colors";
 import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope } from "react-icons/fa";
+import "react-datepicker/dist/react-datepicker.css";
+
 import {
   BrowserRouter as Router,
   Routes,
@@ -28,7 +30,7 @@ import { useSelector } from "react-redux";
 import { io } from "socket.io-client";
 function App() {
   // const [menuItems, setMenuItems] = useState([]);
-  const [isAdmin, setIsAdmin] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -118,13 +120,11 @@ function AppContent({ isAdmin, setIsAdmin }) {
     });
 
     socket.on("connect", () => {
-      console.log("🟢 Connected to backend socket:", socket.id);
     });
 
     socket.on("offers_updated", (updatedAdmin) => {
       debugger
       if (updatedAdmin.brand_name == FRONTEND_ID) {
-        console.log("🔥 Real-time offers update received:", updatedAdmin.offers);
         dispatch(setOffers(updatedAdmin.offers)); // Replace Redux offers
       }
 
@@ -132,7 +132,6 @@ function AppContent({ isAdmin, setIsAdmin }) {
 
     socket.on("shop_status_updated", (data) => {
       if (data.brand_name == FRONTEND_ID) {
-        console.log("🟢 Shop status changed:", data);
         setShopStatus((prev) => ({
           ...prev,
           open: data.shop_open,
@@ -142,9 +141,7 @@ function AppContent({ isAdmin, setIsAdmin }) {
     });
 
     socket.on("shop_time_changed", (data) => {
-      console.log("DATA", data)
       if (data.brand_name == FRONTEND_ID) {
-        console.log("🕒 Shop open/close time changed:", data);
         setShopStatus((prev) => ({
           ...prev,
           openTime: data.new_open_time || prev.openTime,
@@ -154,8 +151,6 @@ function AppContent({ isAdmin, setIsAdmin }) {
     });
     // Replace the existing item_availability_changed listener with:
     socket.on("item_availability_changed", (data) => {
-      console.log("📦 Item availability changed:", data);
-      console.log("📦 Socket data structure:", JSON.stringify(data, null, 2));
 
       if (data.brand_name == FRONTEND_ID) {
         console.log("📦 Dispatching updateItemAvailability with:", {
@@ -172,7 +167,6 @@ function AppContent({ isAdmin, setIsAdmin }) {
     });
 
     socket.on("disconnect", () => {
-      console.log("🔴 Disconnected from socket");
     });
 
     return () => {

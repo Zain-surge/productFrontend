@@ -16,7 +16,6 @@ const Footer = () => {
 
   const handleSendMessage = () => {
     if (message.trim()) {
-      console.log("Message sent:", message);
       setMessage(""); // Clear the input field after sending
     }
   };
@@ -204,7 +203,7 @@ const Footer = () => {
               viewBox="0 0 24 24"
               fill="white"
               className="w-6 h-6  transition duration-300 mr-4 ml-4 lg:mr-8 lg:ml-8 "
-              style={{ fill: "#000000" }}
+              style={{ fill: "#FFFFFF" }}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.fill = colors.primaryGreen)
               }

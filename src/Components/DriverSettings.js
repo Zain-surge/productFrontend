@@ -87,7 +87,6 @@ function DriverSettings() {
       setLoading(true);
       const res = await axiosInstance.get(`/drivers/orders-with-driver/${date}`);
       setOrders(res.data);
-      console.log("ORDER DETAILS:", res.data);
     } catch (err) {
       console.error("Error fetching driver report:", err);
       alert("❌ Failed to fetch driver report");

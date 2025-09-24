@@ -48,6 +48,7 @@ import RucolaEGrana from "../images/FOOD_ITEMS/RucolaEGrana.jpg";
 import ShawarmaPizza from "../images/FOOD_ITEMS/ShawarmaPizza.jpg";
 
 
+
 import ChickenNuggetsK from "../images/FOOD_ITEMS/ChickenNuggetsK.jpg";
 import ChickenStripsK from "../images/FOOD_ITEMS/ChickenStripsK.jpg";
 import ChickenWingsK from "../images/FOOD_ITEMS/ChickenWingsK.jpg";
@@ -69,6 +70,9 @@ import LargeCheesyChips from "../images/FOOD_ITEMS/LargeCheesyChips.jpg";
 import SmallCheesyChips from "../images/FOOD_ITEMS/LargeCheesyChips.jpg";
 import GarlicMushroom from "../images/FOOD_ITEMS/GarlicMushroom.jpg";
 import DoughBalls from "../images/FOOD_ITEMS/Sample.jpg";
+import NaanBread from "../images/FOOD_ITEMS/Sample.jpg";
+import PittaBread from "../images/FOOD_ITEMS/Sample.jpg";
+import SideSalad from "../images/FOOD_ITEMS/Sample.jpg";
 
 // Wrap Items
 import ChickenStripWrap from "../images/FOOD_ITEMS/Sample.jpg";
@@ -149,9 +153,13 @@ import Ketchup from "../images/FOOD_ITEMS/Sample.jpg";
 import ChilliSauce from "../images/FOOD_ITEMS/Sample.jpg";
 import SweetChilli from "../images/FOOD_ITEMS/Sample.jpg";
 import GarlicSauce from "../images/FOOD_ITEMS/Sample.jpg";
+import BBQSauce from "../images/FOOD_ITEMS/Sample.jpg";
+import MintSauce from "../images/FOOD_ITEMS/Sample.jpg";
+import CreateOwn from "../images/FOOD_ITEMS/Sample.jpg";
 
 export const menuItemImageMapping = {
   // Pizza Items
+  "CREATE YOUR OWN":CreateOwn,
   "BOSTON 7": Boston7,
   "TONNO E CIPOLLE": TonnoECipolle,
   "LA HEALTHY MARINARA PIZZA": LaHealthyMarinaraPizza,
@@ -306,11 +314,29 @@ export const menuItemImageMapping = {
   "Chilli sauce": ChilliSauce,
   "Sweet chilli": SweetChilli,
   "Garlic Sauce": GarlicSauce,
+  "BBQ Sauce": BBQSauce,
+  "Mint Sauce": MintSauce,
 
   "Combo Meal": Ketchup,
   "Family Meal": ChilliSauce,
   "Pizza Offers": SweetChilli,
   "Shawarma Deal": GarlicSauce,
+
+  "SIDE SALAD":SideSalad,
+  "NAAN BREAD":NaanBread,
+  "PITTA BREAD": PittaBread,
+
+
+  "CUP CAKES":SideSalad,
+  "DR PEPPER":NaanBread,
+  "IRN BRU": PittaBread,
+  "DR PEPPER ZERO":SideSalad,
+  "RUBICON MANGO":NaanBread,
+  "CAPRISUN": PittaBread,
+  "WATER": PittaBread,
+  "DOPPIO BURGER": PittaBread,
+  "FILLET WRAP": PittaBread
+
 };
 
 // Helper function to get specific image by item title

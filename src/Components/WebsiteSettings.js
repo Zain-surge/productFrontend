@@ -298,66 +298,101 @@ function WebsiteSettings() {
       {/* Cancelled Orders Modal */}
       {showCancelledModal && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
-          <div className="bg-white rounded-md p-6 w-[95%] max-w-2xl h-[600px] overflow-y-auto shadow-lg">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-md lg:text-xl font-bold">Cancelled Orders</h2>
+          <div className="bg-white rounded-md w-[95%] max-w-2xl h-[600px] shadow-lg flex flex-col">
+            {/* Sticky header */}
+            <div className="flex rounded-md justify-between items-center px-6 py-4 bg-[#F2D9F9] text-white sticky top-0 z-10">
+              <h2 className="text-md lg:text-xl font-bold text-black">Cancelled Orders</h2>
               <button
                 onClick={() => setShowCancelledModal(false)}
-                className="text-gray-600 hover:text-red-500 text-md lg:text-xl"
+                className="text-white hover:text-red-200 text-md lg:text-xl"
               >
                 ×
               </button>
             </div>
 
-            <div className="space-y-4">
-              {cancelledOrders.length === 0 ? (
-                <p>No cancelled orders found.</p>
-              ) : (
-                cancelledOrders.map((order) => (
-                  <div
-                    key={order.order_id}
-                    className="border p-4 rounded shadow-sm flex flex-col md:flex-row md:justify-between md:items-center"
-                  >
-                    <div>
-                      <p>
-                        <strong>Order ID:</strong> {order.order_id}
-                      </p>
-                      <p>
-                        <strong>Transaction:</strong>{" "}
-                        {order.transaction_id || "N/A"}
-                      </p>
-                      <p>
-                        <strong>Total:</strong> £{order.total_price}
-                      </p>
-                      <p>
-                        <strong>Date:</strong>{" "}
-                        {new Date(order.created_at).toLocaleString()}
-                      </p>
-                      <p>
-                        <strong>Customer:</strong> {order.customer_name} 
-                      </p>
-                      <p>
-                        <strong>Customer Email:</strong> {order.customer_email}
-                      </p>
-                       <p>
-                        <strong>Customer Phone:</strong> {order.customer_phone}
-                      </p>
-                    </div>
-                    <div className="mt-4 md:mt-0">
-                      <button
-                        onClick={() => refundOrder(order.order_id)}
-                        className="bg-red-400 hover:bg-red-600 text-white px-4 py-2 rounded"
-                      >
-                        Refund
-                      </button>
-                    </div>
+            {/* Scrollable content */}
+            <div className="overflow-y-auto p-6 space-y-6">
+              {/* Filtered groups */}
+              {(() => {
+                const cancelledCardOrders = cancelledOrders.filter(
+                  (order) =>
+                    order.status?.toLowerCase() === "cancelled" &&
+                    order.payment_type?.toLowerCase() === "card"
+                );
+                const cancelledCashOrders = cancelledOrders.filter(
+                  (order) =>
+                    order.status?.toLowerCase() === "cancelled" &&
+                    order.payment_type?.toLowerCase().includes("cash")
+                );
+                const refundedOrders = cancelledOrders.filter(
+                  (order) => order.status?.toLowerCase() === "refunded"
+                );
+
+                const renderSection = (title, orders) => (
+                  <div>
+                    <h3 className="text-lg font-bold mb-3 border-b pb-1">{title}</h3>
+                    {orders.length === 0 ? (
+                      <p className="text-gray-500">No {title.toLowerCase()} found.</p>
+                    ) : (
+                      orders.map((order) => (
+                        <div
+                          key={order.order_id}
+                          className="border p-4 rounded shadow-sm flex flex-col md:flex-row md:justify-between md:items-center mb-4"
+                        >
+                          <div>
+                            <p>
+                              <strong>Order ID:</strong> {order.order_id}
+                            </p>
+                            <p>
+                              <strong>Transaction:</strong>{" "}
+                              {order.transaction_id || "N/A"}
+                            </p>
+                            <p>
+                              <strong>Total:</strong> £{order.total_price}
+                            </p>
+                            <p>
+                              <strong>Date:</strong>{" "}
+                              {new Date(order.created_at).toLocaleString()}
+                            </p>
+                            <p>
+                              <strong>Customer:</strong> {order.customer_name}
+                            </p>
+                            <p>
+                              <strong>Email:</strong> {order.customer_email}
+                            </p>
+                            <p>
+                              <strong>Phone:</strong> {order.customer_phone}
+                            </p>
+                          </div>
+                          {order.status?.toLowerCase() !== "refunded" && (
+                            <div className="mt-4 md:mt-0">
+                              <button
+                                onClick={() => refundOrder(order.order_id)}
+                                className="bg-red-400 hover:bg-red-600 text-white px-4 py-2 rounded"
+                              >
+                                Refund
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
-                ))
-              )}
+                );
+
+                return (
+                  <>
+                    {renderSection("Card Orders", cancelledCardOrders)}
+                    {renderSection("Cash Orders", cancelledCashOrders)}
+                    {renderSection("Refunded Orders", refundedOrders)}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
       )}
+
       {/* Offline Items Modal */}
       {showOfflineModal && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">

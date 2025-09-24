@@ -128,10 +128,7 @@ function ReportSettings() {
     setIsLoading(true); // NEW
     setReportData(null);
 
-    setUniqueSources([]);
-    setUniquePaymentTypes([]);
-    setUniqueOrderTypes([]);
-    setUniqueItemTypes([]);
+
     setFilterItemType("All");
 
 
@@ -165,7 +162,6 @@ function ReportSettings() {
         try {
           const res = await axiosInstance.get(`/admin//driver-report/${selectedDate}`);
           setDriverReportData(res.data);
-          console.log("Driver Report:", res.data);
         } catch (err) {
           console.error("Error fetching driver report:", err);
           alert("Failed to fetch driver report.");
@@ -186,23 +182,24 @@ function ReportSettings() {
 
       const res = await axiosInstance.get(url, { params });
       setReportData(res.data);
-      console.log("REPORT DATA", res.data);
+      console.log("REPORT DATA:", res.data);
 
       // Populate unique filter options from fetched data
-      if (res.data.sales_by_order_source) {
-        setUniqueSources(['All', ...new Set(res.data.sales_by_order_source.map(s => s.source))]);
+      if (filterSource === "All" && filterPaymentType === "All" && filterOrderType === "All") {
+        if (res.data.sales_by_order_source) {
+          setUniqueSources(['All', ...new Set(res.data.sales_by_order_source.map(s => s.source))]);
+        }
+        if (res.data.sales_by_payment_type) {
+          setUniquePaymentTypes(["All", ...new Set(res.data.sales_by_payment_type.map(p => p.payment_type))]);
+        }
+        if (res.data.sales_by_order_type) {
+          setUniqueOrderTypes(["All", ...new Set(res.data.sales_by_order_type.map(o => o.order_type))]);
+        }
 
-      }
-      if (res.data.sales_by_payment_type) {
-        setUniquePaymentTypes(["All", ...new Set(res.data.sales_by_payment_type.map(p => p.payment_type))]);
-      }
-      if (res.data.sales_by_order_type) {
-        setUniqueOrderTypes(["All", ...new Set(res.data.sales_by_order_type.map(o => o.order_type))]);
-      }
-
-      if (res.data.all_items_sold) {
-        const uniqueTypes = ['All', ...new Set(res.data.all_items_sold.map(item => item.type).filter(Boolean))];
-        setUniqueItemTypes(uniqueTypes);
+        if (res.data.all_items_sold) {
+          const uniqueTypes = ['All', ...new Set(res.data.all_items_sold.map(item => item.type).filter(Boolean))];
+          setUniqueItemTypes(uniqueTypes);
+        }
       }
 
     } catch (err) {
@@ -228,6 +225,12 @@ function ReportSettings() {
     }
     return data.filter(item => item[filterKey] === filterValue);
   };
+
+  // Add these new filtered data variables after the existing ones
+  const filteredPaymentDataPOS = getFilteredData(reportData?.sales_by_payment_type_pos, 'payment_type', filterPaymentType);
+  const filteredPaymentDataWebsite = getFilteredData(reportData?.sales_by_payment_type_website, 'payment_type', filterPaymentType);
+  const filteredOrderTypeDataPOS = getFilteredData(reportData?.sales_by_order_type_pos, 'order_type', filterOrderType);
+  const filteredOrderTypeDataWebsite = getFilteredData(reportData?.sales_by_order_type_website, 'order_type', filterOrderType);
 
   const filteredPaymentData = getFilteredData(reportData?.sales_by_payment_type, 'payment_type', filterPaymentType);
   const filteredOrderTypeData = getFilteredData(reportData?.sales_by_order_type, 'order_type', filterOrderType);
@@ -267,7 +270,7 @@ function ReportSettings() {
       {activeReport != 'today' && (
         <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4 mx-auto w-full max-w-[60rem] mt-2 px-4">
           {activeReport === "daily2" && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 w-full">
               <label htmlFor="dailyDate" className="font-semibold" style={{ fontFamily: "Bambino" }}>
                 Select Date:
               </label>
@@ -298,7 +301,7 @@ function ReportSettings() {
           )}
 
           {activeReport === "driver" && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 w-full">
               <label htmlFor="driverDate" className="font-semibold" style={{ fontFamily: "Bambino" }}>
                 Select Date:
               </label>
@@ -329,7 +332,7 @@ function ReportSettings() {
           )}
 
           {activeReport === "weekly2" && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 w-full">
               <label htmlFor="weeklyDate" className="font-semibold" style={{ fontFamily: "Bambino" }}>
                 Select Date:
               </label>
@@ -361,7 +364,7 @@ function ReportSettings() {
 
 
           {activeReport === "monthly2" && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
+            <div className="flex flex-col sm:flex-row items-center justify-center  gap-2 w-full">
               <label htmlFor="monthlyYear" className="font-semibold" style={{ fontFamily: "Bambino" }}>
                 Year:
               </label>
@@ -416,7 +419,7 @@ function ReportSettings() {
         </div>
       )}
       {activeReport === "driver" && driverReportData?.driver_delivery_locations && (
-        <div className="mx-12 lg:mx-24 bg-white border rounded-lg p-4 shadow-lg">
+        <div className="mx-4 lg:mx-24 bg-white border rounded-lg p-4 shadow-lg">
           <h2 className="text-xl font-bold mb-4">Driver Delivery Locations</h2>
           <table className="w-full border-collapse text-left">
             <thead>
@@ -442,7 +445,7 @@ function ReportSettings() {
       )}
 
       {activeReport === "driver" && driverReportData?.driver_order_summary && (
-        <div className="mx-12 lg:mx-24 bg-white border rounded-lg p-4 shadow-lg mt-6">
+        <div className="mx-4 lg:mx-24 bg-white border rounded-lg p-4 shadow-lg mt-6">
           <h2 className="text-xl font-bold mb-4">Driver Order Summary</h2>
           <table className="w-full border-collapse text-left">
             <thead>
@@ -469,7 +472,7 @@ function ReportSettings() {
 
       {/* Report Data Display */}
       {reportData && (
-        <div className="mx-12 lg:mx-24 bg-white border rounded-lg p-2 shadow-lg items-center">
+        <div className="mx-4 lg:mx-24 bg-white border rounded-lg p-2 shadow-lg items-center">
           <div className="text-sm md:text-lg font-bold mb-6 text-white bg-black rounded-lg w-fit mx-auto px-6 py-2">
             {activeReport === "today" ? "Today's Report" :
               activeReport === "daily2" ? "Daily Report" :
@@ -479,41 +482,80 @@ function ReportSettings() {
 
           {/* Filters */}
           <div className="grid grid-cols-1 md:grid-cols-3 mb-4 " style={{ fontFamily: "Bambino" }}>
-            <div className="col-span-1 items-center gap-2 w-full">
-              <label className="mr-5 w-[50%]" >Source:</label>
-              <select
-                value={filterSource}
-                onChange={(e) => setFilterSource(e.target.value)}
-                className="p-0 md:p-2 border rounded w-[50%]"
-              >
-                {uniqueSources.map(option => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
+            <div className="col-span-1 w-full px-3">
+              <div className="grid grid-cols-3 items-center gap-2">
+                <div className="col-span-1">
+                  <label className="block text-left pr-2">Source:</label>
+                </div>
+
+                <div className="col-span-2">
+                  <select
+                    value={filterSource}
+                    onChange={(e) => setFilterSource(e.target.value)}
+                    className="w-full p-0 md:p-2 border rounded"
+                  >
+                    {uniqueSources.map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
-            <div className="col-span-1 items-center gap-2 ">
-              <label className="mr-5 w-[50%]">Payment Type:</label>
-              <select
-                value={filterPaymentType}
-                onChange={(e) => setFilterPaymentType(e.target.value)}
-                className="p-0 md:p-2 border rounded w-[50%]"
-              >
-                {uniquePaymentTypes.map(option => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
+            <div className="col-span-1 w-full px-3">
+              <div className="grid grid-cols-3 items-center gap-2">
+                <div className="col-span-1">
+                  <label className="block text-left pr-2">Payment Type:</label>
+                </div>
+
+                <div className="col-span-2">
+                  <select
+                    value={filterPaymentType}
+                    onChange={(e) => setFilterPaymentType(e.target.value)}
+                    className="w-full p-0 md:p-2 border rounded"
+                  >
+                    {uniquePaymentTypes.map(option => {
+                      let label;
+                      if (option === '') {
+                        label = 'Unpaid';
+                      } else if (option === 'card') {
+                        label = 'Card-POS';
+                      } else if (option === 'Card') {
+                        label = 'Card-Website';
+                      } else if (option === 'cash') {
+                        label = 'Cash';
+                      } else {
+                        label = option;
+                      }
+
+                      return (
+                        <option key={option || 'unpaid'} value={option}>
+                          {label}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+              </div>
             </div>
-            <div className="col-span-1 items-center gap-2 ">
-              <label className="mr-5 w-[50%]">Order Type:</label>
-              <select
-                value={filterOrderType}
-                onChange={(e) => setFilterOrderType(e.target.value)}
-                className="p-0 md:p-2 border rounded w-[50%]"
-              >
-                {uniqueOrderTypes.map(option => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
+            <div className="col-span-1 w-full px-3">
+              <div className="grid grid-cols-3 items-center gap-2">
+                <div className="col-span-1">
+                  <label className="block text-left pr-2">Order Type:</label>
+                </div>
+
+                <div className="col-span-2">
+                  <select
+                    value={filterOrderType}
+                    onChange={(e) => setFilterOrderType(e.target.value)}
+                    className="w-full p-0 md:p-2 border rounded"
+                  >
+                    {uniqueOrderTypes.map(option => (
+                      <option key={option} value={option}>{option.charAt(0).toUpperCase() + option.slice(1)}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -540,22 +582,15 @@ function ReportSettings() {
 
 
 
-                {/* Total Sales Amount */}
-                <div className="grid grid-cols-2 gap-2 items-center">
+                {/* {activeReport != 'monthly2' && (<div className="grid grid-cols-2 gap-2 items-center">
                   <div className="text-[#D987EF] font-semibold">Total Sales Amount AFTER DISCOUNT:</div>
                   <div className="text-black text-lg font-bold">
                     £{reportData.total_sales_amount || reportData.total_sales}
                   </div>
-                </div>
+                </div>)} */}
 
-                {reportData.total_discount !== undefined && (
-                  <div className="grid grid-cols-2 gap-2 items-center">
-                    <div className="text-[#D987EF] font-semibold">Total Discount:</div>
-                    <div className="text-black text-lg font-bold">
-                      £{reportData.total_discount}
-                    </div>
-                  </div>
-                )}
+
+
 
                 {/* Total Orders Placed (New API only) */}
                 {reportData.total_orders_placed !== undefined && (
@@ -636,35 +671,112 @@ function ReportSettings() {
                           </div>
                         ))}
                         {/* Total paidouts */}
-                        <div className="grid grid-cols-2 gap-2 items-center border-t border-gray-200 pt-2 mt-2">
-                          <div className="text-[#D987EF] font-bold">Total Payouts:</div>
-                          <div className="text-black text-lg font-bold">
-                            £{reportData.paidouts.reduce((sum, payout) => sum + parseFloat(payout.amount), 0).toFixed(2)}
-                          </div>
-                        </div>
+
                       </div>
                     </div>
                   </>
                 )}
+                {reportData && (
+                  <>
+                    <div className="border-t border-gray-300 pt-4 mt-4">
+                      <div className="space-y-2">
+                        <h4 className="text-lg font-bold text-gray-800 mb-3">Sales Details</h4>
+                        {/* Total paidouts */
+                          (activeReport == 'monthly2' || activeReport == 'weekly2') && (
+                            <div className="grid grid-cols-2 gap-2 items-center pt-2 mt-2">
+                              <div className="text-[#D987EF] font-bold">Total Sales:</div>
+                              <div className="text-black text-lg font-bold">
+                                £{reportData.whole_month_discount && reportData.whole_month_discount.length > 0 ? (
+                                  
+                                  parseFloat(reportData.total_sales_amount || reportData.total_sales) +
+                                  parseFloat(reportData?.whole_month_discount[0]?.sum || 0)
+                                ).toFixed(2) : parseFloat(reportData.total_sales_amount || reportData.total_sales).toFixed(2)}
+                              </div>
+                            </div>)}
+
+                        {
+                          (activeReport == 'daily2' || activeReport == 'today') && (
+                            <div className="grid grid-cols-2 gap-2 items-center pt-2 mt-2">
+                              <div className="text-[#D987EF] font-bold">Total Sales:</div>
+                              <div className="text-black text-lg font-bold">
+                                £{reportData.total_discount !== undefined > 0 ? (
+                                  parseFloat(reportData.total_sales_amount || reportData.total_sales) +
+                                  parseFloat(Number(reportData.total_discount).toFixed(2))
+                                ).toFixed(2) : parseFloat(reportData.total_sales_amount || reportData.total_sales).toFixed(2)}
+                              </div>
+                            </div>)}
+
+                        {reportData.total_discount !== undefined && (
+                          <div className="grid grid-cols-2 gap-2 items-center pt-2 mt-2">
+                            <div className="text-[#D987EF] font-semibold">Total Discount:</div>
+                            <div className="text-black text-lg font-bold">
+                              £{Number(reportData.total_discount).toFixed(2)}
+                            </div>
+                          </div>
+                        )}
+
+                        {reportData.whole_month_discount && reportData.whole_month_discount.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2 items-center pt-2 mt-2">
+                            <div className="text-[#D987EF] font-bold">Total Discount:</div>
+                            <div className="text-black text-lg font-bold">
+                              £{reportData.whole_month_discount[0].sum != null ? parseFloat(reportData?.whole_month_discount[0]?.sum).toFixed(2) : 0.00}
+                            </div>
+                          </div>)}
+
+                        {reportData.whole_month_paidouts && reportData.whole_month_paidouts.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2 items-center  pt-2 mt-2">
+                            <div className="text-[#D987EF] font-bold">Total Paidouts:</div>
+                            <div className="text-black text-lg font-bold">
+                              £{parseFloat(reportData?.whole_month_paidouts[0]?.sum).toFixed(2)}
+                            </div>
+                          </div>)}
+
+                        {reportData.paidouts && reportData.paidouts.length > 0 && (
+
+                          <div className="grid grid-cols-2 gap-2 items-center pt-2 mt-2">
+                            <div className="text-[#D987EF] font-bold">Total Payouts:</div>
+                            <div className="text-black text-lg font-bold">
+                              £{reportData.paidouts.reduce((sum, payout) => sum + parseFloat(payout.amount), 0).toFixed(2)}
+                            </div>
+                          </div>
+                        )}
+
+                        {(activeReport == 'monthly2' || activeReport == 'weekly2') && (
+                          <div className="grid grid-cols-2 gap-2 items-center pt-2 mt-2">
+                            <div className="text-[#D987EF] font-bold">Total Sales after Paidouts and Discounts:</div>
+                            <div className="text-black text-lg font-bold">
+                              £{reportData.whole_month_paidouts && reportData.whole_month_paidouts.length > 0?(
+                                parseFloat(reportData.total_sales_amount || reportData.total_sales) -
+                                parseFloat(reportData?.whole_month_paidouts[0]?.sum)
+                              ).toFixed(2):0}
+                            </div>
+                          </div>)}
+
+                        {(activeReport == 'daily2' || activeReport == 'today') && (
+                          <div className="grid grid-cols-2 gap-2 items-center pt-2 mt-2">
+                            <div className="text-[#D987EF] font-bold">Total Sales after Paidouts and Discounts:</div>
+                            <div className="text-black text-lg font-bold">
+                              £{(
+                                parseFloat(reportData.total_sales_amount || reportData.total_sales) -
+                                (reportData.paidouts?.reduce((sum, p) => sum + parseFloat(p.amount), 0) || 0)
+                              ).toFixed(2)}
+                            </div>
+                          </div>
+                        )}
 
 
 
-                {/* Delivery Details (if available) */}
-                {/* {reportData.most_delivered_postal_code?.registered_user_deliveries !== undefined && (
-                  <div className="mt-2 p-2 bg-blue-50 rounded">
-                    <div className="text-sm text-gray-600">
-                      <div>Registered Users: {reportData.most_delivered_postal_code.registered_user_deliveries}</div>
-                      <div>Guest Orders: {reportData.most_delivered_postal_code.guest_deliveries}</div>
-                      <div>Total Sales: ${reportData.most_delivered_postal_code.total_delivery_sales}</div>
+
+                      </div>
                     </div>
-                  </div>
-                )} */}
+                  </>
+                )}
               </div>
             </div>
 
             {/* Charts */}
             <div className="col-span-1 lg:col-span-2">
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                 {reportData?.sales_increase !== undefined && (
                   <SalesGrowthPieChart growthPercentage={reportData.sales_increase} period={activeReport} />
                 )}
@@ -672,6 +784,14 @@ function ReportSettings() {
                 <DistributionPieCharts data={filteredPaymentData} title="Payment Methods" />
                 <DistributionPieCharts data={filteredOrderTypeData} title="Order Types" />
                 <DistributionPieCharts data={filteredOrderSourceData} title="Order Sources" />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+                {filteredPaymentDataPOS && (<DistributionPieCharts data={filteredPaymentDataPOS} title="Payment Methods (POS)" />)}
+                {filteredOrderTypeDataPOS && (<DistributionPieCharts data={filteredOrderTypeDataPOS} title="Order Types (POS)" />)}
+                {filteredPaymentDataWebsite && (<DistributionPieCharts data={filteredPaymentDataWebsite} title="Payment Methods (WEB)" />)}
+
+                {filteredOrderTypeDataWebsite && (<DistributionPieCharts data={filteredOrderTypeDataWebsite} title="Order Types (WEB)" />)}
               </div>
             </div>
 

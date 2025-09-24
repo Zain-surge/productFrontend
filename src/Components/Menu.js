@@ -35,7 +35,7 @@ import { clearUser, setUser } from "../store/userSlice";
 import { closeAuthModal } from "../store/modalSlice"; // Import the action
 
 const stripePromise = loadStripe(
-  "pk_test_51Qjkvz09BvMasiZC1YmgMdc7JBgVwxMbD1wG1Mu1i4ec3j51DaVw9ypm4HNCM6ox08X51MHCypKJcENwIALs0qzl00oeH8G11i"
+  "pk_live_51Qjkvz09BvMasiZC6q7i71AEX7sOjjuqxxY0GKvbMDlPAxRLOBto1ZUNCAMQwA17F8hvvO9VID1VkIvOeGtAfyd200WaTthWzi"
 );
 
 function Menu() {
@@ -56,13 +56,10 @@ function Menu() {
 
   useEffect(() => {
     async function fetchSession() {
-      console.log("Checking session...");
       try {
         const res = await checkSession();
-        console.log("Response received:", res.data);
         dispatch(setUser(res.data.user));
       } catch (error) {
-        console.log("Error occurred:", error);
         dispatch(clearUser());
       }
     }
@@ -73,11 +70,9 @@ function Menu() {
   const handleLogin = async (data) => {
     try {
       const response = await loginUser(data);
-      console.log("Login Successful:", response.data);
       dispatch(setUser(response.data));
 
       const cartResponse = await getCart(response.data.user.id);
-      console.log("CART AFTER LOGIN DATA:", cartResponse);
 
       if (cartResponse.data.success && cartResponse.data.cart.length > 0) {
         const formattedCart = cartResponse.data.cart.map((item) => ({
@@ -121,7 +116,6 @@ function Menu() {
   };
 
   const handleGuest = () => {
-    console.log("Continue as Guest");
     dispatch(closeAuthModal()); // Close the modal when continuing as guest
   };
 
@@ -186,12 +180,9 @@ function Menu() {
     Dips,
   };
   useEffect(() => {
-  console.log("Menu items updated:", menuItems);
 }, [menuItems]);
 
   const handleClick = (item) => {
-    console.log(offers);
-    console.log(menuItems);
     const currentIndex = menuCategories.indexOf(selectedItem);
     const newIndex = menuCategories.indexOf(item);
 
@@ -438,7 +429,6 @@ function Menu() {
             <Cart
               isOpen={true}
               onClose={() => setIsCartOpen(false)}
-              menuItems={menuItems}
             />
           </Elements>
         </div>

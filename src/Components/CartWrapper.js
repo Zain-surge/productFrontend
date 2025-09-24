@@ -5,10 +5,12 @@ import { loadStripe } from "@stripe/stripe-js";
 import Cart from "./Cart";
 
 const stripePromise = loadStripe(
-  "pk_test_51Qjkvz09BvMasiZC1YmgMdc7JBgVwxMbD1wG1Mu1i4ec3j51DaVw9ypm4HNCM6ox08X51MHCypKJcENwIALs0qzl00oeH8G11i"
+  "pk_live_51Qjkvz09BvMasiZC6q7i71AEX7sOjjuqxxY0GKvbMDlPAxRLOBto1ZUNCAMQwA17F8hvvO9VID1VkIvOeGtAfyd200WaTthWzi"
 );
 
+
 const CartWrapper = ({ isOpen, onClose }) => (
+  
   <Elements stripe={stripePromise}>
     <Cart isOpen={isOpen} onClose={onClose} />
   </Elements>

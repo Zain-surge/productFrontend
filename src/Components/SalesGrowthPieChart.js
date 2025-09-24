@@ -15,15 +15,16 @@ const SalesGrowthPieChart = ({ growthPercentage, period = "weekly2" }) => {
   const directionText = isPositive ? "more" : "less";
 
   let periodText = "last week";
-  if (period === "daily2" || period==='today') periodText = "yesterday";
+  if (period === "daily2") periodText = "previous week same day";
+  if (period === 'today') periodText = "last week same day";
   if (period === "monthly2") periodText = "last month";
   if (period === "weekly2") periodText = "last week";
 
   return (
-    <div className="relative w-full max-w-[180px] sm:max-w-[220px] aspect-square mx-auto">
+    <div className="relative w-full max-w-[160px] sm:max-w-[200px] aspect-square mx-auto">
       <h3
-        className="text-xs md:text-lg font-semibold mb-4 text-gray-700"
-        style={{ fontFamily: "Bambino" }}
+        className="text-xs md:text-lg font-semibold mb-4 text-gray-700 text-center"
+        style={{ fontFamily: "Bambino", textAlign:"center" }}
       >
         Sales Growth
       </h3>

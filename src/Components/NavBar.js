@@ -34,7 +34,6 @@ function NavBar() {
 
   const handleLogout = async () => {
     try {
-      console.log("LOGGING OUT");
       await saveCartItems();
       await axiosInstance.post("/auth/logout", {}, { withCredentials: true });
       dispatch(clearUser());
@@ -48,7 +47,6 @@ function NavBar() {
   const saveCartItems = async () => {
     if (cartItems.length > 0 && user) {
       try {
-        console.log(cartItems);
         await axiosInstance.post(
           "/cart/saveCart",
           {
@@ -57,7 +55,6 @@ function NavBar() {
           },
           { withCredentials: true }
         );
-        console.log("Cart items saved successfully.");
       } catch (error) {
         console.error("Error saving cart items:", error);
       }

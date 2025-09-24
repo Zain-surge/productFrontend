@@ -32,6 +32,16 @@ const CartModal = ({ isOpen, onClose, item }) => {
     "Chilli sauce",
     "Sweet chilli",
     "Garlic Sauce",
+    "BBQ Sauce",
+    "Mint Sauce"
+  ];
+
+  const salads = [
+    "Cucumber",
+    "Lettuce",
+    "Onions",
+    "Tomato",
+    "Cabbage"
   ];
 
   const cheeses = [
@@ -67,6 +77,8 @@ const CartModal = ({ isOpen, onClose, item }) => {
     "Basil",
     "Olives",
     "Sausages",
+    "Donner",
+    "Shawarma"
   ];
 
   const validToppings = preSelectedToppings.filter((topping) =>
@@ -92,6 +104,15 @@ const CartModal = ({ isOpen, onClose, item }) => {
   const [noSauce, setNoSauce] = useState(false);
   const [noCream, setNoCream] = useState(false);
 
+  const [selectedSalads, setSelectedSalads] = useState([]);
+
+  // 2. Add handleSaladToggle function (add this near other handler functions)
+  const handleSaladToggle = (salad) => {
+    setSelectedSalads((prev) =>
+      prev.includes(salad) ? prev.filter((s) => s !== salad) : [...prev, salad]
+    );
+  };
+
   const [selectedComboItems, setSelectedComboItems] = useState({
     pizza: null,
     shawarma: null,
@@ -108,7 +129,8 @@ const CartModal = ({ isOpen, onClose, item }) => {
 
   const [validationErrors, setValidationErrors] = useState([]);
 
-  const [selectedDrink, setSelectedDrink] = useState(""); // if meal is selected
+  const [selectedDrink, setSelectedDrink] = useState("");
+  const [selectedseasoning, setSelectedseasoning] = useState("");// if meal is selected
 
   const [isMeal, setIsMeal] = useState(false);
   const modalRef = useRef(null);
@@ -132,7 +154,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
     if (item.Type === "Deals" && item.title === "Pizza Offers") {
       // Get unique pizzas from menuItems
       const uniquePizzas = menuItems
-        .filter(menuItem => menuItem.Type === "Pizza" && menuItem.availability === true)
+        .filter(menuItem => (menuItem.Type === "Pizza" || menuItem.Type === "GarlicBread") && menuItem.availability === true && menuItem.website === true)
         .reduce((acc, current) => {
           const existing = acc.find(pizza => pizza.title === current.title);
           if (!existing) {
@@ -246,18 +268,19 @@ const CartModal = ({ isOpen, onClose, item }) => {
     }
   };
 
-  const handlePizzaToggle = (pizza) => {
+  const handlePizzaSelect = (pizza, index) => {
     setSelectedPizzas(prev => {
-      const isSelected = prev.some(p => p.id === pizza.id);
+      const updated = [...prev];
 
-      if (isSelected) {
-        // Remove pizza
-        return prev.filter(p => p.id !== pizza.id);
-      } else if (prev.length < 3) {
-        // Add pizza (max 3)
-        return [...prev, pizza];
+      // Make sure array has exactly 3 slots
+      while (updated.length < 3) {
+        updated.push(null);
       }
-      return prev; // Don't add if already have 3
+
+      // Replace the pizza at the given index
+      updated[index] = pizza;
+
+      return updated;
     });
 
     // Clear validation errors when user makes selection
@@ -265,6 +288,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
       setValidationErrors([]);
     }
   };
+
 
   const dispatch = useDispatch();
   const flavors = [
@@ -360,7 +384,6 @@ const CartModal = ({ isOpen, onClose, item }) => {
   };
   const calculatePrice = () => {
     debugger;
-    console.log("DETAILS OF ITEM:", selectedSauces);
     let basePrice = 0;
     if (
       item.Type == "Pizza" ||
@@ -384,41 +407,59 @@ const CartModal = ({ isOpen, onClose, item }) => {
 
     if (selectedCrust === "Stuffed") {
       if (selectedSize === "10 inch") crustPrice = 1.5;
+      else if (selectedSize === "16 inch") crustPrice = 3.5;
       else if (selectedSize === "12 inch") crustPrice = 2.5;
       else if (selectedSize === "18 inch") crustPrice = 4.5;
     }
+    if (item.title === 'CREATE YOUR OWN' && selectedToppings.length + selectedCheeses.length > 4) {
+
+      if (selectedSize === "10 inch")
+        toppingsPrice = 1.0 * (selectedToppings.length + selectedCheeses.length - 4);
+      else if (selectedSize === "12 inch")
+        toppingsPrice = 1.5 * (selectedToppings.length + selectedCheeses.length - 4);
+      else if (selectedSize === "16 inch")
+        toppingsPrice = 2.5 * (selectedToppings.length + selectedCheeses.length - 4);
+      else if (selectedSize === "18 inch")
+        toppingsPrice = 3.5 * (selectedToppings.length + selectedCheeses.length - 4);
+    }
     if (
       selectedToppings.length > 0 &&
-      selectedToppings.length != validToppings.length
+      selectedToppings.length != validToppings.length && item.title != 'CREATE YOUR OWN'
     ) {
       if (selectedSize === "10 inch")
         toppingsPrice = 1.0 * (selectedToppings.length - validToppings.length);
       else if (selectedSize === "12 inch")
         toppingsPrice = 1.5 * (selectedToppings.length - validToppings.length);
+      else if (selectedSize === "16 inch")
+        toppingsPrice = 2.5 * (selectedToppings.length - validToppings.length);
       else if (selectedSize === "18 inch")
-        toppingsPrice = 5.5 * (selectedToppings.length - validToppings.length);
+        toppingsPrice = 3.5 * (selectedToppings.length - validToppings.length);
     }
 
     if (
       selectedCheeses.length > 0 &&
-      selectedCheeses.length != validCheese.length
+      selectedCheeses.length != validCheese.length && item.title != 'CREATE YOUR OWN'
     ) {
       if (selectedSize === "10 inch")
         cheesePrice = 1.0 * (selectedCheeses.length - validCheese.length);
       else if (selectedSize === "12 inch")
         cheesePrice = 1.5 * (selectedCheeses.length - validCheese.length);
+      else if (selectedSize === "16 inch")
+        cheesePrice = 2.5 * (selectedCheeses.length - validCheese.length);
       else if (selectedSize === "18 inch")
-        cheesePrice = 5.5 * (selectedCheeses.length - validCheese.length);
+        cheesePrice = 3.5 * (selectedCheeses.length - validCheese.length);
     }
     if (selectedBase.includes("BBQ")) {
       if (selectedSize === "10 inch") basesPrice += 0.99;
       else if (selectedSize === "12 inch") basesPrice += 1.5;
+      else if (selectedSize === "16 inch") basesPrice += 2.99;
       else if (selectedSize === "18 inch") basesPrice += 4.0;
     }
 
     if (selectedBase.includes("Garlic")) {
       if (selectedSize === "10 inch") basesPrice += 0.99;
       else if (selectedSize === "12 inch") basesPrice += 1.5;
+      else if (selectedSize === "16 inch") basesPrice += 2.99;
       else if (selectedSize === "18 inch") basesPrice += 4.0;
     }
 
@@ -438,9 +479,6 @@ const CartModal = ({ isOpen, onClose, item }) => {
       }
 
     });
-    console.log(typeof basePrice);
-    console.log(typeof mealPrice);
-    console.log("HEJNJBFJB", basePrice + mealPrice);
 
     return (
       basePrice +
@@ -466,6 +504,32 @@ const CartModal = ({ isOpen, onClose, item }) => {
   const handleQuantityIncrease = () => {
     setQuantity((prev) => prev + 1);
   };
+  const [shawarmaChoices, setShawarmaChoices] = useState(
+    Array.from({ length: 4 }, () => ({ salad: false, sauce: false, sauces: [] }))
+  );
+
+  const updateShawarmaChoice = (index, changes) => {
+    setShawarmaChoices((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], ...changes };
+      return updated;
+    });
+  };
+
+  const toggleShawarmaSauce = (index, sauce) => {
+    setShawarmaChoices((prev) => {
+      const updated = [...prev];
+      const currentSauces = updated[index].sauces || [];
+      updated[index] = {
+        ...updated[index],
+        sauces: currentSauces.includes(sauce)
+          ? currentSauces.filter((s) => s !== sauce)
+          : [...currentSauces, sauce],
+      };
+      return updated;
+    });
+  };
+
 
   const handleQuantityDecrease = () => {
     setQuantity((prev) => Math.max(1, prev - 1));
@@ -477,11 +541,6 @@ const CartModal = ({ isOpen, onClose, item }) => {
       errors.push("Please select a size");
     }
 
-    if (item.Type === "Deals" && item.title === "Shawarma Deal") {
-      if (selectedShawarmas.length !== 4) {
-        errors.push("Please select exactly 4 shawarmas");
-      }
-    }
 
     if (item.Type === "Shawarma" && item.price["naan"] && !selectedSize) {
       errors.push("Please select a type");
@@ -499,9 +558,9 @@ const CartModal = ({ isOpen, onClose, item }) => {
       if (!selectedComboItems.pizza) {
         errors.push("Please select a pizza");
       }
-      if (!selectedComboItems.shawarma) {
-        errors.push("Please select a shawarma");
-      }
+      // if (!selectedComboItems.shawarma) {
+      //   errors.push("Please select a shawarma");
+      // }
       if (!selectedComboItems.burger) {
         errors.push("Please select a burger");
       }
@@ -557,12 +616,17 @@ const CartModal = ({ isOpen, onClose, item }) => {
     if (isMeal) {
       descriptionParts.push("MEAL");
       if (selectedDrink) descriptionParts.push(`Drink: ${selectedDrink}`);
+      if (selectedseasoning) descriptionParts.push(`Seasoning: ${selectedseasoning}`);
     }
+
     if (selectedSauces.length > 0 && item.Type == "Pizza") {
       descriptionParts.push(`Sauce Dips: ${selectedSauces.join(", ")}`);
     }
     if (selectedSauces.length > 0 && (item.Type === "Burgers" || item.Type === "Shawarma" || item.Type === "Wraps")) {
       descriptionParts.push(`Sauces: ${selectedSauces.join(", ")}`);
+    }
+    if (selectedSalads.length > 0 && (item.Type === "Burgers" || item.Type === "Shawarma" || item.Type === "Wraps")) {
+      descriptionParts.push(`Salads: ${selectedSalads.join(", ")}`);
     }
 
     // In handleAddToCart function, after the existing descriptionParts logic, add:
@@ -579,7 +643,22 @@ const CartModal = ({ isOpen, onClose, item }) => {
     }
 
     if (item.Type === "Deals" && item.title === "Shawarma Deal") {
-      descriptionParts.push(`Selected Shawarmas: ${selectedShawarmas.map(s => s.title).join(", ")}`);
+      descriptionParts.push(
+        `Selected Shawarmas: ${shawarmaChoices
+          .map((s, idx) => {
+            const saladText = s.salad ? "No Salad" : "Salad";
+            const sauceText = s.sauce
+              ? "No Sauce"
+              : s.sauces.length > 0
+                ? `Sauce: ${s.sauces.join(", ")}`
+                : "Sauce";
+            return `Shawarma ${idx + 1} (${saladText}, ${sauceText})`;
+          })
+          .join("\n ")}`
+      );
+    }
+    if (item.Type == "Deals" && item.title != "Pizza Offers") {
+      if (selectedseasoning) descriptionParts.push(`Seasoning: ${selectedseasoning}`);
     }
 
     if (reviewNote.trim())
@@ -682,55 +761,120 @@ const CartModal = ({ isOpen, onClose, item }) => {
                 </p>
                 {item.Type === "Deals" && item.title === "Shawarma Deal" && (
                   <>
-                    {/* Shawarma Selection */}
-                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
-                      <div className="col-span-1">
-                        <h3
-                          className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
-                          style={{ fontFamily: "Bambino", fontWeight: 350 }}
-                        >
-                          Select 4 Shawarmas
-                        </h3>
-                        <p className="text-xs text-gray-600">
-                          {selectedShawarmas.length}/4 selected
-                        </p>
-                      </div>
-                      <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1 max-h-32 overflow-y-auto">
-                        {availableShawarmas.map((shawarma) => (
-                          <motion.button
-                            key={shawarma.id}
-                            onClick={() => handleShawarmaToggle(shawarma)}
-                            className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm transition-colors rounded-lg ${selectedShawarmas.some(s => s.id === shawarma.id)
-                              ? "bg-green-800 text-white"
-                              : selectedShawarmas.length >= 4
-                                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                              }`}
-                            disabled={selectedShawarmas.length >= 4 && !selectedShawarmas.some(s => s.id === shawarma.id)}
-                            whileHover={{ scale: selectedShawarmas.length < 4 || selectedShawarmas.some(s => s.id === shawarma.id) ? 1.1 : 1 }}
-                            whileTap={{ scale: selectedShawarmas.length < 4 || selectedShawarmas.some(s => s.id === shawarma.id) ? 0.95 : 1 }}
-                          >
-                            {shawarma.title}
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
+                    <h3
+                      className="text-base lg:text-lg font-semibold mb-2"
+                      style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                    >
+                      Select 4 Shawarmas
+                    </h3>
 
-                    {validationErrors.length > 0 && (
-                      <div className="col-span-full mb-2">
-                        {validationErrors.map((error, index) => (
-                          <p key={index} className="text-red-600 text-sm font-medium">
-                            {error}
-                          </p>
-                        ))}
-                      </div>
-                    )}
+                    <div className="flex flex-col gap-4">
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <div
+                          key={index}
+                          className="border rounded-lg p-3 bg-gray-50 shadow-sm"
+                        >
+                          <h4
+                            className="text-sm font-semibold mb-2"
+                            style={{ fontFamily: "Bambino" }}
+                          >
+                            Shawarma {index + 1}
+                          </h4>
+
+                          {/* Salad */}
+                          <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                            <div className="col-span-1">
+                              <h5 className="text-sm font-medium py-1">Salad</h5>
+                            </div>
+                            <div className="col-span-1 lg:col-span-4 flex gap-1">
+                              {[
+                                { label: "Yes", value: false },
+                                { label: "No", value: true },
+                              ].map((option) => (
+                                <motion.button
+                                  key={option.label}
+                                  onClick={() =>
+                                    updateShawarmaChoice(index, { salad: option.value })
+                                  }
+                                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${shawarmaChoices[index]?.salad === option.value
+                                    ? "bg-green-800 text-white"
+                                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                    }`}
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.95 }}
+                                >
+                                  {option.label}
+                                </motion.button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Sauce Yes/No */}
+                          <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                            <div className="col-span-1">
+                              <h5 className="text-sm font-medium py-1">Sauce</h5>
+                            </div>
+                            <div className="col-span-1 lg:col-span-4 flex gap-1">
+                              {[
+                                { label: "Yes", value: false },
+                                { label: "No", value: true },
+                              ].map((option) => (
+                                <motion.button
+                                  key={option.label}
+                                  onClick={() =>
+                                    updateShawarmaChoice(index, {
+                                      sauce: option.value,
+                                      sauces: option.value ? [] : shawarmaChoices[index]?.sauces,
+                                    })
+                                  }
+                                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${shawarmaChoices[index]?.sauce === option.value
+                                    ? "bg-green-800 text-white"
+                                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                    }`}
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.95 }}
+                                >
+                                  {option.label}
+                                </motion.button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Sauce options if Yes */}
+                          {shawarmaChoices[index]?.sauce === false && (
+                            <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                              <div className="col-span-1">
+                                <h5 className="text-sm font-medium py-1">Sauces</h5>
+                              </div>
+                              <div className="col-span-1 lg:col-span-4 flex flex-wrap gap-1">
+                                {sauces.map((sauce) => (
+                                  <motion.button
+                                    key={sauce}
+                                    onClick={() => toggleShawarmaSauce(index, sauce)}
+                                    className={`px-3 py-1 text-sm rounded-lg transition-colors ${shawarmaChoices[index]?.sauces?.includes(sauce)
+                                      ? "bg-green-800 text-white"
+                                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                      }`}
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.95 }}
+                                  >
+                                    {sauce}
+                                  </motion.button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </>
                 )}
+
                 {item.Type === "Deals" && (item.title === "Combo Meal" || item.title === "Family Meal") && (
                   <>
                     {/* Pizza Selection for Combo */}
-                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2 border rounded-lg p-3 bg-gray-50 shadow-sm mb-2">
+
                       <div className="col-span-1">
                         <h3
                           className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
@@ -739,7 +883,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                           Select 1 Pizza
                         </h3>
                       </div>
-                      <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1 max-h-32 overflow-y-auto">
+                      <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1 ">
                         {availablePizzas.map((pizza) => (
                           <motion.button
                             key={pizza.id}
@@ -758,16 +902,16 @@ const CartModal = ({ isOpen, onClose, item }) => {
                     </div>
 
                     {/* Shawarma Selection for Combo */}
-                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2 border rounded-lg p-3 bg-gray-50 shadow-sm mb-2">
                       <div className="col-span-1">
                         <h3
                           className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
                           style={{ fontFamily: "Bambino", fontWeight: 350 }}
                         >
-                          Select 1 Shawarma
+                          CHICKEN SHAWARMA
                         </h3>
                       </div>
-                      <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1 max-h-32 overflow-y-auto">
+                      {/* <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1 max-h-32 overflow-y-auto">
                         {availableShawarmas.map((shawarma) => (
                           <motion.button
                             key={shawarma.id}
@@ -782,11 +926,11 @@ const CartModal = ({ isOpen, onClose, item }) => {
                             {shawarma.title}
                           </motion.button>
                         ))}
-                      </div>
+                      </div> */}
                     </div>
 
                     {/* Burger Selection for Combo */}
-                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2 border rounded-lg p-3 bg-gray-50 shadow-sm mb-2">
                       <div className="col-span-1">
                         <h3
                           className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
@@ -815,7 +959,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
 
                     {item.Type === "Deals" && item.title === "Family Meal" && (
 
-                      <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                      <div className="grid grid-cols-1 lg:grid-cols-5 pt-2 border rounded-lg p-3 bg-gray-50 shadow-sm mb-2">
                         <div className="col-span-1">
                           <h3
                             className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
@@ -849,6 +993,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
 
                     {/* Salad Options for Combo */}
                     <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+
                       <div className="col-span-1">
                         <h3
                           className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
@@ -958,41 +1103,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                 )}
                 {item.Type === "Deals" && item.title === "Pizza Offers" && (
                   <>
-                    {/* Pizza Selection */}
-                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
-                      <div className="col-span-1">
-                        <h3
-                          className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
-                          style={{ fontFamily: "Bambino", fontWeight: 350 }}
-                        >
-                          Select 3 Pizzas
-                        </h3>
-                        <p className="text-xs text-gray-600">
-                          {selectedPizzas.length}/3 selected
-                        </p>
-                      </div>
-                      <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1 max-h-32 overflow-y-auto">
-                        {availablePizzas.map((pizza) => (
-                          <motion.button
-                            key={pizza.id}
-                            onClick={() => handlePizzaToggle(pizza)}
-                            className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm transition-colors rounded-lg ${selectedPizzas.some(p => p.id === pizza.id)
-                              ? "bg-green-800 text-white"
-                              : selectedPizzas.length >= 3
-                                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                              }`}
-                            disabled={selectedPizzas.length >= 3 && !selectedPizzas.some(p => p.id === pizza.id)}
-                            whileHover={{ scale: selectedPizzas.length < 3 || selectedPizzas.some(p => p.id === pizza.id) ? 1.1 : 1 }}
-                            whileTap={{ scale: selectedPizzas.length < 3 || selectedPizzas.some(p => p.id === pizza.id) ? 0.95 : 1 }}
-                          >
-                            {pizza.title}
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Size Selection for Pizza Offers */}
+                    {/* Size Selection at the top */}
                     <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
                       <div className="col-span-1">
                         <h3
@@ -1007,7 +1118,7 @@ const CartModal = ({ isOpen, onClose, item }) => {
                           <motion.button
                             key={size}
                             onClick={() => handleSizeSelect(size)}
-                            className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm transition-colors rounded-lg ${selectedSize === size
+                            className={`px-2 lg:px-4 py-1 text-sm rounded-lg transition-colors ${selectedSize === size
                               ? "bg-green-800 text-white"
                               : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                               }`}
@@ -1020,6 +1131,86 @@ const CartModal = ({ isOpen, onClose, item }) => {
                       </div>
                     </div>
 
+                    {/* Pizza 1 */}
+                    <div className="border rounded-lg p-3 bg-gray-50 shadow-sm mt-3">
+                      <h3
+                        className="text-base lg:text-base font-semibold mb-2 flex justify-start items-center"
+                        style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                      >
+                        Select Pizza 1
+                      </h3>
+                      <div className="flex flex-wrap gap-1">
+                        {availablePizzas.map((pizza) => (
+                          <motion.button
+                            key={"pizza1-" + pizza.id}
+                            onClick={() => handlePizzaSelect(pizza, 0)}
+                            className={`px-3 py-1 text-sm rounded-lg transition-colors ${selectedPizzas[0]?.id === pizza.id
+                              ? "bg-green-800 text-white"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              }`}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            {pizza.title}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Pizza 2 */}
+                    <div className="border rounded-lg p-3 bg-gray-50 shadow-sm mt-3">
+                      <h3
+                        className="text-base lg:text-base font-semibold mb-2 flex justify-start items-center"
+                        style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                      >
+                        Select Pizza 2
+                      </h3>
+                      <div className="flex flex-wrap gap-1">
+                        {availablePizzas.map((pizza) => (
+                          <motion.button
+                            key={"pizza2-" + pizza.id}
+                            onClick={() => handlePizzaSelect(pizza, 1)}
+                            className={`px-3 py-1 text-sm rounded-lg transition-colors ${selectedPizzas[1]?.id === pizza.id
+                              ? "bg-green-800 text-white"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              }`}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            {pizza.title}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Pizza 3 */}
+                    <div className="border rounded-lg p-3 bg-gray-50 shadow-sm mt-3">
+                      <h3
+                        className="text-base lg:text-base font-semibold mb-2 flex justify-start items-center"
+                        style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                      >
+                        Select Pizza 3
+                      </h3>
+                      <div className="flex flex-wrap gap-1">
+                        {availablePizzas.map((pizza) => (
+                          <motion.button
+                            key={"pizza3-" + pizza.id}
+                            onClick={() => handlePizzaSelect(pizza, 2)}
+                            className={`px-3 py-1 text-sm rounded-lg transition-colors ${selectedPizzas[2]?.id === pizza.id
+                              ? "bg-green-800 text-white"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              }`}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            {pizza.title}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+
+
+                    {/* Validation Errors */}
                     {validationErrors.length > 0 && (
                       <div className="col-span-full mb-2">
                         {validationErrors.map((error, index) => (
@@ -1031,6 +1222,8 @@ const CartModal = ({ isOpen, onClose, item }) => {
                     )}
                   </>
                 )}
+
+
 
 
                 {item.Type === "Shawarma" && item.price["naan"] && (
@@ -1213,7 +1406,13 @@ const CartModal = ({ isOpen, onClose, item }) => {
                           ].map((option) => (
                             <motion.button
                               key={option.label}
-                              onClick={() => setNoSalad(option.value)}
+                              onClick={() => {
+                                setNoSalad(option.value);
+                                // Clear selected sauces when "No" is selected
+                                if (option.value === true) {
+                                  setSelectedSalads([]);
+                                }
+                              }}
                               className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm transition-colors rounded-lg ${noSalad === option.value
                                 ? "bg-green-800 text-white"
                                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -1296,6 +1495,37 @@ const CartModal = ({ isOpen, onClose, item }) => {
                   )
                 }
 
+                {
+                  noSalad === false && (item.Type == "Shawarma" || item.Type == "Burgers" || item.Type == "Wraps") && (
+                    <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                      <div className="col-span-1">
+                        <h3
+                          className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                          style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                        >
+                          Salads
+                        </h3>
+                      </div>
+                      <div className="col-span-1 lg:col-span-4 flex flex-wrap justify-start items-center gap-1">
+                        {salads.map((salad) => (
+                          <motion.button
+                            key={salad}
+                            onClick={() => handleSaladToggle(salad)}
+                            className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm  transition-colors rounded-lg  ${selectedSalads.includes(salad)
+                              ? "bg-green-800 text-white"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              }`}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            {salad}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                }
+
                 {item.Type === "Milkshake" && (
                   <div className="col-span-1 flex items-center mt-2">
                     <label className="flex items-center space-x-2 cursor-pointer">
@@ -1325,7 +1555,8 @@ const CartModal = ({ isOpen, onClose, item }) => {
 
                 {(item.Type === "Burgers" ||
                   item.Type == "Wraps" ||
-                  item.Type == "Shawarma") && (
+                  item.Type == "Shawarma" ||
+                  item.Type == "Pizza") && (
                     <>
                       {/* Make it a Meal Checkbox */}
                       <div className="col-span-1 flex items-center mt-2">
@@ -1372,6 +1603,8 @@ const CartModal = ({ isOpen, onClose, item }) => {
                         "Fanta",
                         "Pepsi",
                         "Sprite",
+                        "Irn Bru",
+                        "Caprisun", "Rubicon Mango", "Water"
 
                       ].map((drink) => (
                         <motion.button
@@ -1385,6 +1618,41 @@ const CartModal = ({ isOpen, onClose, item }) => {
                           whileTap={{ scale: 0.95 }}
                         >
                           {drink}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(isMeal || item.Type == 'KidsMeal' || (item.Type == 'Deals' && item.title != 'Pizza Offers') || item.title.includes('CHIPS')) && (
+                  <div className="grid grid-cols-1 lg:grid-cols-5 pt-2">
+                    <div className="col-span-1">
+                      <h3
+                        className="text-base lg:text-base font-semibold mb-1 lg:mb-2 flex justify-start items-center py-1"
+                        style={{ fontFamily: "Bambino", fontWeight: 350 }}
+                      >
+                        Chips Seasoning
+                      </h3>
+                    </div>
+                    <div className="col-span-4 flex flex-wrap justify-start items-center gap-1">
+                      {[
+                        "Red Salt",
+                        "White Salt",
+                        "Vinegar",
+                        "Salt and Vinegar"
+
+                      ].map((seasoning) => (
+                        <motion.button
+                          key={seasoning}
+                          onClick={() => setSelectedseasoning(seasoning)}
+                          className={`px-2 lg:px-4 py-1 lg:py-1 text-sm lg:text-sm rounded transition-all duration-200 transform hover:scale-105 active:scale-95 ${selectedseasoning === seasoning
+                            ? "bg-green-800 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            }`}
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          {seasoning}
                         </motion.button>
                       ))}
                     </div>

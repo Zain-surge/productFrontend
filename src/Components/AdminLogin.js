@@ -17,9 +17,8 @@ function AdminLogin({ setIsAdmin }) {
         credentials,
         { withCredentials: true }
       );
-
       // Check if login was actually successful
-      if (response.data.success) {
+      if (response.data.message==="Login successful") {
         setIsAdmin(true);
       } else {
         setError(response.data.message || "Login failed.");

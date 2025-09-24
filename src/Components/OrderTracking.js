@@ -17,7 +17,7 @@ const OrderTracking = () => {
 
     try {
       const response = await axiosInstance.get(`/orders/track/${orderId}`); // Sort orders: latest first, but cancelled orders at the bottom
-      console.log("HEJDFBHBVRJK", response.data)
+      
       const sortedOrders = response.data.sort((a, b) => { 
         // If one is cancelled and the other isn't, cancelled goes to bottom
         if (a.status === 'cancelled' && b.status !== 'cancelled') return 1;
